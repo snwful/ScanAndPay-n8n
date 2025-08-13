@@ -8,26 +8,6 @@ if (!defined('ABSPATH')) {
 }
 
 class SAN8N_Helper {
-    
-    /**
-     * Generate QR code payload for PromptPay
-     * @param float $amount
-     * @return string
-     */
-    public static function generate_qr_payload($amount) {
-        $settings = get_option(SAN8N_OPTIONS_KEY, array());
-        $promptpay_id = isset($settings['promptpay_payload']) ? $settings['promptpay_payload'] : '';
-        
-        // Placeholder implementation for v1 - EMVCo format will be in v2
-        return base64_encode(json_encode(array(
-            'type' => 'promptpay',
-            'id' => $promptpay_id,
-            'amount' => $amount,
-            'currency' => 'THB',
-            'timestamp' => time()
-        )));
-    }
-
     /**
      * Validate PromptPay ID format
      * @param string $id
