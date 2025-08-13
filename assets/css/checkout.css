@@ -30,7 +30,7 @@
     border-radius: 4px;
 }
 
-.san8n-qr-placeholder {
+.san8n-qr-container img {
     max-width: 200px;
     height: auto;
     margin: 0 auto 10px;
@@ -241,7 +241,7 @@
         padding: 10px;
     }
     
-    .san8n-qr-placeholder {
+    .san8n-qr-container img {
         max-width: 150px;
     }
     
