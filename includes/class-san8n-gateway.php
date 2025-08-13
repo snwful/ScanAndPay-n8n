@@ -233,88 +233,11 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
     }
 
     public function payment_fields() {
-        if ($this->description) {
-            echo wpautop(wp_kses_post($this->description));
-        }
-
-        $order_total = WC()->cart->get_total('edit');
+        $order_total   = WC()->cart->get_total('edit');
         $session_token = $this->generate_session_token();
-        
-        ?>
-        <div id="san8n-payment-fields" class="san8n-payment-container">
-            <div class="san8n-qr-section">
-                <h4><?php esc_html_e('Step 1: Scan PromptPay QR Code', 'scanandpay-n8n'); ?></h4>
-                <div class="san8n-qr-container">
-                    <div class="san8n-qr-placeholder">
-                        <img src="<?php echo esc_url(SAN8N_PLUGIN_URL . 'assets/images/qr-placeholder.png'); ?>" 
-                             alt="<?php esc_attr_e('PromptPay QR Code', 'scanandpay-n8n'); ?>" />
-                    </div>
-                    <div class="san8n-amount-display">
-                        <?php 
-                        echo sprintf(
-                            /* translators: %s: order amount */
-                            __('Amount: %s THB', 'scanandpay-n8n'),
-                            wc_format_localized_price($order_total)
-                        ); 
-                        ?>
-                    </div>
-                </div>
-            </div>
 
-            <div class="san8n-upload-section">
-                <h4><?php esc_html_e('Step 2: Upload Payment Slip', 'scanandpay-n8n'); ?></h4>
-                <div class="san8n-upload-container">
-                    <input type="file" 
-                           id="san8n-slip-upload" 
-                           name="san8n_slip_upload"
-                           accept="image/jpeg,image/jpg,image/png"
-                           aria-label="<?php esc_attr_e('Upload payment slip', 'scanandpay-n8n'); ?>"
-                           data-max-size="<?php echo esc_attr($this->max_file_size); ?>" />
-                    <div class="san8n-upload-preview" style="display:none;">
-                        <img id="san8n-preview-image" src="" alt="<?php esc_attr_e('Slip preview', 'scanandpay-n8n'); ?>" />
-                        <button type="button" class="san8n-remove-slip">
-                            <?php esc_html_e('Remove', 'scanandpay-n8n'); ?>
-                        </button>
-                    </div>
-                    <div class="san8n-upload-info">
-                        <?php 
-                        echo sprintf(
-                            /* translators: %d: max file size in MB */
-                            __('Accepted formats: JPG, PNG (max %dMB)', 'scanandpay-n8n'),
-                            $this->max_file_size / (1024 * 1024)
-                        ); 
-                        ?>
-                    </div>
-                </div>
-            </div>
-
-            <div class="san8n-verify-section">
-                <button type="button" 
-                        id="san8n-verify-button" 
-                        class="san8n-verify-button button alt"
-                        disabled>
-                    <?php esc_html_e('Verify Payment', 'scanandpay-n8n'); ?>
-                </button>
-                <div class="san8n-status-container" 
-                     aria-live="polite" 
-                     aria-atomic="true"
-                     role="status">
-                    <div class="san8n-status-message" style="display:none;"></div>
-                    <div class="san8n-spinner" style="display:none;">
-                        <span class="spinner is-active"></span>
-                    </div>
-                </div>
-            </div>
-
-            <input type="hidden" id="san8n-session-token" name="san8n_session_token" value="<?php echo esc_attr($session_token); ?>" />
-            <input type="hidden" id="san8n-approval-status" name="san8n_approval_status" value="" />
-            <input type="hidden" id="san8n-reference-id" name="san8n_reference_id" value="" />
-            
-            <?php if ($this->auto_place_order_classic): ?>
-            <input type="hidden" id="san8n-auto-submit" value="1" data-delay="<?php echo esc_attr($this->prevent_double_submit_ms); ?>" />
-            <?php endif; ?>
-        </div>
-        <?php
+        echo '<input type="hidden" id="san8n-session-token" name="san8n_session_token" value="' .
+            esc_attr($session_token) . '" />';
     }
 
     public function payment_scripts() {
