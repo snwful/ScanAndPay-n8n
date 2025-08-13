@@ -1,0 +1,355 @@
+# Copyright (C) 2024 Scan & Pay (n8n)
+# This file is distributed under the GPL v2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Scan & Pay (n8n) 1.0.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/scanandpay-n8n\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2024-01-01T00:00:00+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.8.1\n"
+"X-Domain: scanandpay-n8n\n"
+
+#. Plugin Name of the plugin
+msgid "Scan & Pay (n8n)"
+msgstr ""
+
+#. Plugin URI of the plugin
+msgid "https://example.com/scanandpay-n8n"
+msgstr ""
+
+#. Description of the plugin
+msgid "WooCommerce payment gateway that integrates with n8n for inline PromptPay slip verification."
+msgstr ""
+
+#. Author of the plugin
+msgid "Scan & Pay Team"
+msgstr ""
+
+#. Author URI of the plugin
+msgid "https://example.com"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:50
+msgid "Scan & Pay (n8n)"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:51
+msgid "Pay with PromptPay QR code and verify payment inline"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:60
+msgid "Enable/Disable"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:61
+msgid "Enable Scan & Pay (n8n) Payment"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:67
+msgid "Title"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:69
+msgid "This controls the title which the user sees during checkout."
+msgstr ""
+
+#: includes/class-san8n-gateway.php:74
+msgid "Description"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:76
+msgid "Payment method description that the customer will see on your checkout."
+msgstr ""
+
+#: includes/class-san8n-gateway.php:81
+msgid "PromptPay ID/Phone"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:82
+msgid "Your PromptPay ID, phone number, or tax ID"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:87
+msgid "Enable Classic Auto-submit"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:88
+msgid "Automatically submit order after payment approval in Classic checkout"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:94
+msgid "Blocks Mode"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:95
+msgid "Select the mode for WooCommerce Blocks checkout"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:104
+msgid "Allow Blocks Auto-submit (Experimental)"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:105
+msgid "Enable experimental auto-submit in Blocks checkout"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:111
+msgid "Show Express Button Only When Approved"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:112
+msgid "Show express payment button only after payment is approved"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:118
+msgid "n8n Webhook URL"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:119
+msgid "The n8n webhook endpoint URL for payment verification"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:124
+msgid "n8n Webhook Secret"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:125
+msgid "Shared secret for HMAC signature verification"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:130
+msgid "Amount Tolerance (THB)"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:131
+msgid "Maximum allowed difference between order and payment amount"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:137
+msgid "Payment Time Window (minutes)"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:138
+msgid "Maximum time allowed between payment and verification"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:144
+msgid "Max File Size (MB)"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:145
+msgid "Maximum upload file size in megabytes"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:151
+msgid "File Retention Days"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:152
+msgid "Number of days to keep uploaded slip files"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:158
+msgid "Double Submit Prevention (ms)"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:159
+msgid "Milliseconds to prevent double form submission"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:165
+msgid "Enable Logging"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:166
+msgid "Log debug information for troubleshooting"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:200
+msgid "Step 1: Scan PromptPay QR Code"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:206
+msgid "Amount: %s THB"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:210
+msgid "Step 2: Upload Payment Slip"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:216
+msgid "Remove"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:222
+msgid "Accepted formats: JPG, PNG (max %dMB)"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:227
+msgid "Verify Payment"
+msgstr ""
+
+#: includes/class-san8n-gateway.php:260
+msgid "Please upload a payment slip to proceed."
+msgstr ""
+
+#: includes/class-san8n-gateway.php:265
+msgid "Payment verification failed. Please try again."
+msgstr ""
+
+#: includes/class-san8n-gateway.php:288
+msgid "Payment verified successfully. Reference: %s"
+msgstr ""
+
+#: includes/class-san8n-admin.php:50
+msgid "Scan & Pay Details"
+msgstr ""
+
+#: includes/class-san8n-admin.php:70
+msgid "No payment details available"
+msgstr ""
+
+#: includes/class-san8n-admin.php:78
+msgid "Status"
+msgstr ""
+
+#: includes/class-san8n-admin.php:82
+msgid "Reference ID"
+msgstr ""
+
+#: includes/class-san8n-admin.php:86
+msgid "Approved Amount"
+msgstr ""
+
+#: includes/class-san8n-admin.php:90
+msgid "Rejection Reason"
+msgstr ""
+
+#: includes/class-san8n-admin.php:94
+msgid "Verified At"
+msgstr ""
+
+#: includes/class-san8n-admin.php:98
+msgid "Created At"
+msgstr ""
+
+#: includes/class-san8n-admin.php:105
+msgid "Payment Slip"
+msgstr ""
+
+#: includes/class-san8n-admin.php:112
+msgid "No slip uploaded"
+msgstr ""
+
+#: includes/class-san8n-admin.php:118
+msgid "Actions"
+msgstr ""
+
+#: includes/class-san8n-admin.php:122
+msgid "Re-verify"
+msgstr ""
+
+#: includes/class-san8n-admin.php:127
+msgid "Approve"
+msgstr ""
+
+#: includes/class-san8n-admin.php:132
+msgid "Reject"
+msgstr ""
+
+#: includes/class-san8n-admin.php:141
+msgid "Audit Log"
+msgstr ""
+
+#: includes/class-san8n-admin.php:145
+msgid "No audit entries"
+msgstr ""
+
+#: includes/class-san8n-helper.php:175
+msgid "Approved"
+msgstr ""
+
+#: includes/class-san8n-helper.php:176
+msgid "Rejected"
+msgstr ""
+
+#: includes/class-san8n-helper.php:177
+msgid "Pending"
+msgstr ""
+
+#: includes/class-san8n-helper.php:178
+msgid "Expired"
+msgstr ""
+
+#: assets/js/checkout-inline.js:50
+msgid "Invalid file type. Please upload JPG or PNG."
+msgstr ""
+
+#: assets/js/checkout-inline.js:57
+msgid "File size exceeds limit."
+msgstr ""
+
+#: assets/js/checkout-inline.js:88
+msgid "Please upload a payment slip."
+msgstr ""
+
+#: assets/js/checkout-inline.js:105
+msgid "Verifying payment..."
+msgstr ""
+
+#: assets/js/checkout-inline.js:154
+msgid "Payment approved!"
+msgstr ""
+
+#: assets/js/checkout-inline.js:166
+msgid "Processing order..."
+msgstr ""
+
+#: assets/js/checkout-inline.js:183
+msgid "Payment rejected. Please try again."
+msgstr ""
+
+#: assets/js/checkout-inline.js:229
+msgid "Please verify your payment before placing the order."
+msgstr ""
+
+#: assets/js/checkout-inline.js:240
+msgid "Cart has been updated. Please verify payment again."
+msgstr ""
+
+#: assets/js/blocks-integration.js:40
+msgid "Pay now"
+msgstr ""
+
+#: assets/js/admin.js:35
+msgid "Are you sure you want to re-verify this payment?"
+msgstr ""
+
+#: assets/js/admin.js:38
+msgid "Are you sure you want to approve this payment?"
+msgstr ""
+
+#: assets/js/admin.js:41
+msgid "Are you sure you want to reject this payment?"
+msgstr ""
+
+#: assets/js/admin.js:53
+msgid "Processing..."
+msgstr ""
+
+#: assets/js/admin.js:62
+msgid "Please provide a reason for rejection:"
+msgstr ""
+
+#: assets/js/admin.js:79
+msgid "Success"
+msgstr ""
+
+#: assets/js/admin.js:91
+msgid "Error"
+msgstr ""

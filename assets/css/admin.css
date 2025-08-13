@@ -1,0 +1,368 @@
+/**
+ * Scan & Pay (n8n) - Admin Styles
+ */
+
+/* Meta Box Container */
+#san8n_payment_details .inside {
+    padding: 15px;
+}
+
+.san8n-meta-box {
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* Info Grid */
+.san8n-info-grid {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 12px 20px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.san8n-info-label {
+    font-weight: 600;
+    color: #555;
+}
+
+.san8n-info-value {
+    color: #333;
+}
+
+/* Slip Preview */
+.san8n-slip-section {
+    margin: 20px 0;
+    padding: 15px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.san8n-slip-section h4 {
+    margin: 0 0 15px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+
+.san8n-slip-thumbnail {
+    display: inline-block;
+    max-width: 300px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+    transition: transform 0.3s;
+}
+
+.san8n-slip-thumbnail:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.san8n-slip-thumbnail img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+/* Status Badges */
+.san8n-status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.san8n-status-approved {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.san8n-status-rejected {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.san8n-status-pending {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+}
+
+.san8n-status-expired {
+    background: #e2e3e5;
+    color: #383d41;
+    border: 1px solid #d6d8db;
+}
+
+/* Action Buttons */
+.san8n-actions {
+    margin: 20px 0;
+    padding-top: 20px;
+    border-top: 1px solid #ddd;
+}
+
+.san8n-actions h4 {
+    margin: 0 0 15px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+
+.san8n-action-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.san8n-action-button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.san8n-action-button:focus {
+    outline: 2px solid #2271b1;
+    outline-offset: 2px;
+}
+
+.san8n-action-reverify {
+    background: #2271b1;
+    color: white;
+}
+
+.san8n-action-reverify:hover {
+    background: #135e96;
+}
+
+.san8n-action-approve {
+    background: #28a745;
+    color: white;
+}
+
+.san8n-action-approve:hover {
+    background: #218838;
+}
+
+.san8n-action-reject {
+    background: #dc3545;
+    color: white;
+}
+
+.san8n-action-reject:hover {
+    background: #c82333;
+}
+
+.san8n-action-button:disabled {
+    background: #ccc;
+    color: #666;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Action Result Messages */
+.san8n-action-result {
+    margin: 15px 0;
+    padding: 12px 20px;
+    border-radius: 4px;
+    font-size: 13px;
+    display: none;
+}
+
+.san8n-action-result.notice-success {
+    background: #d4edda;
+    color: #155724;
+    border-left: 4px solid #28a745;
+}
+
+.san8n-action-result.notice-error {
+    background: #f8d7da;
+    color: #721c24;
+    border-left: 4px solid #dc3545;
+}
+
+/* Audit Log */
+.san8n-audit-log {
+    margin: 20px 0;
+    padding-top: 20px;
+    border-top: 1px solid #ddd;
+}
+
+.san8n-audit-log h4 {
+    margin: 0 0 15px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+
+.san8n-audit-entries {
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 10px;
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: monospace;
+}
+
+.san8n-audit-entry {
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e0e0e0;
+    line-height: 1.5;
+}
+
+.san8n-audit-entry:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.san8n-audit-timestamp {
+    color: #666;
+    font-weight: 600;
+}
+
+.san8n-audit-user {
+    color: #2271b1;
+    font-weight: 600;
+}
+
+.san8n-audit-action {
+    color: #333;
+}
+
+/* Settings Page Styles */
+.san8n-settings-section {
+    margin: 20px 0;
+    padding: 20px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.san8n-settings-section h3 {
+    margin: 0 0 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #2271b1;
+    color: #2271b1;
+}
+
+.san8n-test-webhook {
+    margin-top: 10px;
+}
+
+.san8n-test-webhook button {
+    background: #2271b1;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background 0.3s;
+}
+
+.san8n-test-webhook button:hover {
+    background: #135e96;
+}
+
+.san8n-test-result {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 13px;
+    display: none;
+}
+
+.san8n-test-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.san8n-test-error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* RTL Support */
+.rtl .san8n-info-grid {
+    direction: rtl;
+}
+
+.rtl .san8n-action-buttons {
+    justify-content: flex-end;
+}
+
+.rtl .san8n-audit-entries {
+    direction: rtl;
+    text-align: right;
+}
+
+/* Responsive */
+@media (max-width: 782px) {
+    .san8n-info-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    
+    .san8n-info-label {
+        font-weight: 600;
+        margin-top: 10px;
+    }
+    
+    .san8n-action-buttons {
+        flex-direction: column;
+    }
+    
+    .san8n-action-button {
+        width: 100%;
+        text-align: center;
+    }
+    
+    .san8n-slip-thumbnail {
+        max-width: 100%;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .san8n-actions,
+    .san8n-test-webhook {
+        display: none;
+    }
+    
+    .san8n-audit-entries {
+        max-height: none;
+    }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+    .san8n-status-badge,
+    .san8n-action-button {
+        border-width: 2px;
+    }
+    
+    .san8n-action-button:focus {
+        outline-width: 3px;
+    }
+}

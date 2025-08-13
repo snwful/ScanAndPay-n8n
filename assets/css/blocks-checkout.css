@@ -1,0 +1,287 @@
+/**
+ * Scan & Pay (n8n) - Blocks Checkout Styles
+ */
+
+/* Blocks payment fields container */
+.san8n-blocks-payment-fields {
+    padding: 20px 0;
+}
+
+/* Blocks label */
+.san8n-blocks-label {
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+}
+
+/* QR Section for Blocks */
+.san8n-blocks-payment-fields .san8n-qr-section {
+    margin-bottom: 24px;
+    padding: 16px;
+    background: var(--wp--preset--color--background, #f8f9fa);
+    border-radius: 4px;
+}
+
+.san8n-blocks-payment-fields .san8n-qr-section h4 {
+    margin: 0 0 16px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--wp--preset--color--foreground, #333);
+}
+
+.san8n-blocks-payment-fields .san8n-qr-container {
+    text-align: center;
+    padding: 16px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.san8n-blocks-payment-fields .san8n-qr-placeholder {
+    max-width: 200px;
+    height: auto;
+    margin: 0 auto 12px;
+    display: block;
+}
+
+.san8n-blocks-payment-fields .san8n-amount-display {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--wp-admin-theme-color, #2271b1);
+    margin: 12px 0;
+}
+
+/* Upload Section for Blocks */
+.san8n-blocks-payment-fields .san8n-upload-section {
+    margin-bottom: 24px;
+    padding: 16px;
+    background: var(--wp--preset--color--background, #f8f9fa);
+    border-radius: 4px;
+}
+
+.san8n-blocks-payment-fields .san8n-upload-section h4 {
+    margin: 0 0 16px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--wp--preset--color--foreground, #333);
+}
+
+.san8n-blocks-payment-fields .san8n-upload-container {
+    background: white;
+    padding: 20px;
+    border: 2px dashed #ccc;
+    border-radius: 4px;
+    text-align: center;
+    transition: border-color 0.3s;
+}
+
+.san8n-blocks-payment-fields .san8n-upload-container:hover {
+    border-color: var(--wp-admin-theme-color, #2271b1);
+}
+
+.san8n-blocks-payment-fields .san8n-upload-container input[type="file"] {
+    display: block;
+    margin: 0 auto;
+    padding: 12px;
+    font-size: 0.875rem;
+}
+
+.san8n-blocks-payment-fields .san8n-upload-info {
+    margin-top: 12px;
+    font-size: 0.75rem;
+    color: #666;
+}
+
+/* Upload Preview for Blocks */
+.san8n-blocks-payment-fields .san8n-upload-preview {
+    position: relative;
+    display: inline-block;
+}
+
+.san8n-blocks-payment-fields .san8n-upload-preview img {
+    max-width: 200px;
+    height: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.san8n-blocks-payment-fields .san8n-remove-slip {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    margin-top: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: background 0.3s;
+    display: block;
+    width: 100%;
+}
+
+.san8n-blocks-payment-fields .san8n-remove-slip:hover {
+    background: #c82333;
+}
+
+/* Verify Section for Blocks */
+.san8n-blocks-payment-fields .san8n-verify-section {
+    text-align: center;
+    margin: 24px 0;
+}
+
+.san8n-blocks-payment-fields .san8n-verify-button {
+    background: var(--wp-admin-theme-color, #2271b1);
+    color: white;
+    border: none;
+    padding: 12px 32px;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.3s;
+    min-width: 150px;
+}
+
+.san8n-blocks-payment-fields .san8n-verify-button:hover:not(:disabled) {
+    background: var(--wp-admin-theme-color-darker-10, #135e96);
+}
+
+.san8n-blocks-payment-fields .san8n-verify-button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Express Button for Blocks */
+.san8n-blocks-payment-fields .san8n-express-button {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 14px 36px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s;
+    min-width: 180px;
+    margin-top: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.san8n-blocks-payment-fields .san8n-express-button:hover {
+    background: #218838;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    transform: translateY(-1px);
+}
+
+/* Status Messages for Blocks */
+.san8n-blocks-payment-fields .san8n-status-message {
+    padding: 12px 20px;
+    border-radius: 4px;
+    margin: 16px 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.san8n-blocks-payment-fields .san8n-status-message.san8n-status-approved {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.san8n-blocks-payment-fields .san8n-status-message.san8n-status-rejected {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.san8n-blocks-payment-fields .san8n-status-message.san8n-status-error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.san8n-blocks-payment-fields .san8n-status-message.san8n-status-null {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+}
+
+/* Loading state */
+.san8n-blocks-payment-fields .san8n-verify-button:disabled::after {
+    content: "";
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-left: 8px;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: san8n-blocks-spin 0.8s linear infinite;
+}
+
+@keyframes san8n-blocks-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* RTL Support for Blocks */
+.rtl .san8n-blocks-payment-fields {
+    direction: rtl;
+    text-align: right;
+}
+
+.rtl .san8n-blocks-payment-fields .san8n-qr-container,
+.rtl .san8n-blocks-payment-fields .san8n-verify-section {
+    text-align: center;
+}
+
+/* Responsive for Blocks */
+@media (max-width: 600px) {
+    .san8n-blocks-payment-fields .san8n-qr-section,
+    .san8n-blocks-payment-fields .san8n-upload-section {
+        padding: 12px;
+    }
+    
+    .san8n-blocks-payment-fields .san8n-qr-placeholder,
+    .san8n-blocks-payment-fields .san8n-upload-preview img {
+        max-width: 100%;
+    }
+    
+    .san8n-blocks-payment-fields .san8n-verify-button,
+    .san8n-blocks-payment-fields .san8n-express-button {
+        width: 100%;
+    }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+    .san8n-blocks-payment-fields .san8n-qr-container,
+    .san8n-blocks-payment-fields .san8n-upload-container {
+        background: #1e1e1e;
+        border-color: #555;
+    }
+    
+    .san8n-blocks-payment-fields .san8n-qr-section,
+    .san8n-blocks-payment-fields .san8n-upload-section {
+        background: #2b2b2b;
+    }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+    .san8n-blocks-payment-fields .san8n-upload-container {
+        border-width: 3px;
+    }
+    
+    .san8n-blocks-payment-fields .san8n-status-message {
+        border-width: 2px;
+    }
+    
+    .san8n-blocks-payment-fields .san8n-verify-button,
+    .san8n-blocks-payment-fields .san8n-express-button {
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
+    }
+}

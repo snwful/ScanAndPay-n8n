@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+<ruleset name="Scan and Pay n8n">
+    <description>WordPress Coding Standards for Scan & Pay (n8n) plugin</description>
+
+    <!-- Scan all PHP files in directory -->
+    <file>.</file>
+
+    <!-- Exclude vendor and node_modules directories -->
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+    <exclude-pattern>*/tests/*</exclude-pattern>
+    <exclude-pattern>*/assets/*</exclude-pattern>
+
+    <!-- Use WordPress-Extra as the base -->
+    <rule ref="WordPress-Extra">
+        <!-- Allow short array syntax -->
+        <exclude name="Generic.Arrays.DisallowShortArraySyntax"/>
+        
+        <!-- Allow ::class notation -->
+        <exclude name="Squiz.Classes.SelfMemberReference.NotUsed"/>
+    </rule>
+
+    <!-- Use WordPress-Docs for documentation standards -->
+    <rule ref="WordPress-Docs"/>
+
+    <!-- Ensure compatibility with PHP 8.0+ -->
+    <config name="testVersion" value="8.0-"/>
+    <rule ref="PHPCompatibilityWP"/>
+
+    <!-- Set text domain for i18n -->
+    <rule ref="WordPress.WP.I18n">
+        <properties>
+            <property name="text_domain" type="array">
+                <element value="scanandpay-n8n"/>
+            </property>
+        </properties>
+    </rule>
+
+    <!-- Verify nonces -->
+    <rule ref="WordPress.Security.NonceVerification"/>
+
+    <!-- Check for SQL escaping -->
+    <rule ref="WordPress.DB.PreparedSQL"/>
+
+    <!-- Enforce late escaping -->
+    <rule ref="WordPress.Security.EscapeOutput"/>
+
+    <!-- Validate and sanitize input -->
+    <rule ref="WordPress.Security.ValidatedSanitizedInput"/>
+
+    <!-- File naming conventions -->
+    <rule ref="WordPress.Files.FileName">
+        <properties>
+            <property name="strict_class_file_names" value="false"/>
+        </properties>
+    </rule>
+
+    <!-- Array indentation -->
+    <rule ref="Generic.Arrays.DisallowLongArraySyntax"/>
+    <rule ref="WordPress.Arrays.ArrayIndentation"/>
+
+    <!-- Namespace and use statements -->
+    <rule ref="PSR2.Namespaces.UseDeclaration"/>
+
+    <!-- Set minimum supported WP version -->
+    <config name="minimum_supported_wp_version" value="6.0"/>
+</ruleset>
