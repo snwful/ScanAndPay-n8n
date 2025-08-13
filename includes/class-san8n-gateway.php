@@ -237,7 +237,8 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
             echo wpautop(wp_kses_post($this->description));
         }
 
-        $order_total   = WC()->cart->get_total('edit');
+        $order_total = WC()->cart->get_total('edit');
+        $qr_payload = $this->generate_qr_payload($order_total);
         $session_token = $this->generate_session_token();
         
         ?>
@@ -245,13 +246,12 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
             <div class="san8n-qr-section">
                 <h4><?php esc_html_e('Step 1: Scan PromptPay QR Code', 'scanandpay-n8n'); ?></h4>
                 <div class="san8n-qr-container">
-                    <?php
-                    if (shortcode_exists('promptpayqr')) {
-                        echo do_shortcode('[promptpayqr ppid="' . esc_attr($this->promptpay_payload) . '"]');
-                    }
-                    ?>
+                    <div class="san8n-qr-placeholder" data-payload="<?php echo esc_attr($qr_payload); ?>">
+                        <img src="<?php echo esc_url(SAN8N_PLUGIN_URL . 'assets/images/qr-placeholder.png'); ?>" 
+                             alt="<?php esc_attr_e('PromptPay QR Code', 'scanandpay-n8n'); ?>" />
+                    </div>
                     <div class="san8n-amount-display">
-                        <?php
+                        <?php 
                         echo sprintf(
                             /* translators: %s: order amount */
                             __('Amount: %s THB', 'scanandpay-n8n'),
