@@ -11,7 +11,6 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
     private $logger;
     private $n8n_webhook_url;
     private $shared_secret;
-    private $promptpay_payload;
     private $amount_tolerance;
     private $time_window;
     private $auto_place_order_classic;
@@ -42,7 +41,6 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
         $this->enabled = $this->get_option('enabled');
         $this->n8n_webhook_url = $this->get_option('n8n_webhook_url');
         $this->shared_secret = $this->get_option('shared_secret');
-        $this->promptpay_payload = $this->get_option('promptpay_payload');
         $this->amount_tolerance = floatval($this->get_option('amount_tolerance', '0'));
         $this->time_window = intval($this->get_option('time_window', '15'));
         $this->auto_place_order_classic = $this->get_option('auto_place_order_classic', 'yes') === 'yes';
@@ -86,12 +84,10 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                 'default' => __('Scan PromptPay QR code and upload payment slip for instant verification.', 'scanandpay-n8n'),
                 'desc_tip' => true,
             ),
-            'promptpay_payload' => array(
-                'title' => __('PromptPay Payload/ID', 'scanandpay-n8n'),
-                'type' => 'text',
-                'description' => __('Your PromptPay ID or payload string for QR generation.', 'scanandpay-n8n'),
-                'desc_tip' => true,
-                'custom_attributes' => array('required' => 'required')
+            'promptpay_info' => array(
+                'title' => __('PromptPay QR Code', 'scanandpay-n8n'),
+                'type' => 'title',
+                'description' => __('QR code is generated using wp-promptpay plugin. Please configure PromptPay ID and settings in the wp-promptpay plugin settings.', 'scanandpay-n8n'),
             ),
             'n8n_webhook_url' => array(
                 'title' => __('n8n Webhook URL', 'scanandpay-n8n'),
@@ -238,7 +234,6 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
         }
 
         $order_total = WC()->cart->get_total('edit');
-        $qr_payload = $this->generate_qr_payload($order_total);
         $session_token = $this->generate_session_token();
         
         ?>
@@ -246,17 +241,14 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
             <div class="san8n-qr-section">
                 <h4><?php esc_html_e('Step 1: Scan PromptPay QR Code', 'scanandpay-n8n'); ?></h4>
                 <div class="san8n-qr-container">
-                    <div class="san8n-qr-placeholder" data-payload="<?php echo esc_attr($qr_payload); ?>">
-                        <img src="<?php echo esc_url(SAN8N_PLUGIN_URL . 'assets/images/qr-placeholder.png'); ?>" 
-                             alt="<?php esc_attr_e('PromptPay QR Code', 'scanandpay-n8n'); ?>" />
-                    </div>
+                    <?php echo do_shortcode('[promptpayqr]'); ?>
                     <div class="san8n-amount-display">
-                        <?php 
+                        <?php
                         echo sprintf(
                             /* translators: %s: order amount */
                             __('Amount: %s THB', 'scanandpay-n8n'),
                             wc_format_localized_price($order_total)
-                        ); 
+                        );
                         ?>
                     </div>
                 </div>
@@ -455,11 +447,6 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
             'result' => 'success',
             'redirect' => $this->get_return_url($order)
         );
-    }
-
-    private function generate_qr_payload($amount) {
-        // Placeholder for v1 - actual EMVCo implementation in v2
-        return base64_encode($this->promptpay_payload . '|' . $amount);
     }
 
     private function generate_session_token() {

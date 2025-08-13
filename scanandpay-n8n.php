@@ -33,6 +33,9 @@ define('SAN8N_SESSION_FLAG', 'san8n_approved');
 define('SAN8N_LOGGER_SOURCE', 'scanandpay-n8n');
 define('SAN8N_CAPABILITY', 'san8n_manage');
 
+// Helper functions
+require_once SAN8N_PLUGIN_DIR . 'helpers/log.php';
+
 // Bootstrap plugin
 add_action('plugins_loaded', 'san8n_init_gateway', 11);
 
