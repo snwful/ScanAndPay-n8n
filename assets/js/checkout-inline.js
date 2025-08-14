@@ -32,9 +32,6 @@
             // Checkout error
             $(document.body).on('checkout_error', this.handleCheckoutError);
             
-            // Update checkout
-            $(document.body).on('update_checkout', this.handleUpdateCheckout);
-            
             // Before checkout validation
             $(document).on('checkout_place_order_' + san8n_params.gateway_id, this.validateBeforeSubmit);
         },
@@ -112,8 +109,11 @@
             const formData = new FormData();
             formData.append('slip_image', file);
             formData.append('session_token', $('#san8n-session-token').val());
-            formData.append('cart_total', $('#order_review .order-total .amount').text().replace(/[^\d.]/g, ''));
-            formData.append('cart_hash', $('input[name="woocommerce-process-checkout-nonce"]').val());
+            formData.append('order_id', san8n_params.order_id || 0);
+            formData.append('order_total', san8n_params.order_total);
+            if (san8n_params.customer_email) {
+                formData.append('customer_email', san8n_params.customer_email);
+            }
 
             // Make AJAX request
             $.ajax({
@@ -212,33 +212,12 @@
             preventDoubleSubmit = false;
         },
 
-        handleUpdateCheckout: function() {
-            // Check if cart has changed and reset approval if needed
-            if (isApproved) {
-                // Cart might have changed, clear approval
-                const currentTotal = $('#order_review .order-total .amount').text();
-                const approvedTotal = $('#san8n-approved-amount').val();
-                
-                if (currentTotal !== approvedTotal) {
-                    SAN8N_Checkout.resetApproval();
-                }
-            }
-        },
-
         validateBeforeSubmit: function() {
             if (!isApproved) {
-                SAN8N_Checkout.showError('Please verify your payment before placing the order.');
+                SAN8N_Checkout.showError(san8n_params.i18n.verify_before_submit);
                 return false;
             }
             return true;
-        },
-
-        resetApproval: function() {
-            isApproved = false;
-            $('#san8n-approval-status').val('');
-            $('#san8n-reference-id').val('');
-            $('#san8n-verify-button').prop('disabled', false).text(san8n_params.i18n.verify_payment);
-            SAN8N_Checkout.showStatus('Cart has been updated. Please verify payment again.', 'warning');
         },
 
         showPaymentFields: function() {

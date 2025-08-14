@@ -68,15 +68,17 @@ final class SAN8N_Blocks_Integration extends AbstractPaymentMethodType {
                 'allow_blocks_autosubmit_experimental' => $this->get_setting('allow_blocks_autosubmit_experimental') === 'yes',
                 'show_express_only_when_approved' => $this->get_setting('show_express_only_when_approved', 'yes') === 'yes',
                 'prevent_double_submit_ms' => intval($this->get_setting('prevent_double_submit_ms', '1500')),
-                'promptpay_payload' => $this->get_setting('promptpay_payload'),
                 'max_file_size' => intval($this->get_setting('max_file_size', '5')) * 1024 * 1024,
-                'qr_placeholder' => SAN8N_PLUGIN_URL . 'assets/images/qr-placeholder.png'
+                'qr_image_url' => wp_get_attachment_url($this->get_setting('qr_image_id'))
             ),
             'rest_url' => rest_url(SAN8N_REST_NAMESPACE),
             'nonce' => wp_create_nonce('san8n-verify'),
             'gateway_id' => $this->name,
+            'order_total' => WC()->cart ? WC()->cart->total : 0,
+            'order_id' => WC()->session ? WC()->session->get('order_awaiting_payment') : 0,
+            'customer_email' => is_user_logged_in() ? wp_get_current_user()->user_email : '',
             'i18n' => array(
-                'scan_qr' => __('Step 1: Scan PromptPay QR Code', 'scanandpay-n8n'),
+                'scan_qr' => __('Step 1: Scan QR Code', 'scanandpay-n8n'),
                 'upload_slip' => __('Step 2: Upload Payment Slip', 'scanandpay-n8n'),
                 'verify_payment' => __('Verify Payment', 'scanandpay-n8n'),
                 'pay_now' => __('Pay now', 'scanandpay-n8n'),
@@ -88,7 +90,7 @@ final class SAN8N_Blocks_Integration extends AbstractPaymentMethodType {
                 'file_too_large' => __('File size exceeds limit.', 'scanandpay-n8n'),
                 'invalid_file_type' => __('Invalid file type. Please upload JPG or PNG.', 'scanandpay-n8n'),
                 'upload_required' => __('Please upload a payment slip.', 'scanandpay-n8n'),
-                'amount_label' => __('Amount: %s THB', 'scanandpay-n8n'),
+                'amount_label' => __('Order Total: %s THB', 'scanandpay-n8n'),
                 'accepted_formats' => __('Accepted formats: JPG, PNG (max %dMB)', 'scanandpay-n8n'),
                 'remove' => __('Remove', 'scanandpay-n8n')
             )

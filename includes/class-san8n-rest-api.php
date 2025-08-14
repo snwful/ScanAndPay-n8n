@@ -31,15 +31,19 @@ class SAN8N_REST_API {
                     'required' => true,
                     'sanitize_callback' => 'sanitize_text_field'
                 ),
-                'cart_total' => array(
+                'order_id' => array(
+                    'required' => true,
+                    'validate_callback' => 'is_numeric'
+                ),
+                'order_total' => array(
                     'required' => true,
                     'validate_callback' => function($param) {
-                        return is_numeric($param) && $param > 0;
+                        return is_numeric($param) && $param >= 0;
                     }
                 ),
-                'cart_hash' => array(
-                    'required' => true,
-                    'sanitize_callback' => 'sanitize_text_field'
+                'customer_email' => array(
+                    'required' => false,
+                    'sanitize_callback' => 'sanitize_email'
                 )
             )
         ));
@@ -131,7 +135,7 @@ class SAN8N_REST_API {
 
     public function verify_slip($request) {
         $correlation_id = $this->logger->get_correlation_id();
-        
+
         $this->logger->info('Starting slip verification', array(
             'correlation_id' => $correlation_id
         ));
@@ -144,24 +148,21 @@ class SAN8N_REST_API {
             }
 
             // Get parameters
-            $cart_total = floatval($request->get_param('cart_total'));
-            $cart_hash = $request->get_param('cart_hash');
+            $order_id = intval($request->get_param('order_id'));
+            $order_total = floatval($request->get_param('order_total'));
             $session_token = $request->get_param('session_token');
-            $customer_email = is_user_logged_in() ? wp_get_current_user()->user_email : '';
+            $customer_email = $request->get_param('customer_email');
 
             // Prepare data for n8n
             $settings = get_option(SAN8N_OPTIONS_KEY, array());
-            $n8n_url = $settings['n8n_webhook_url'];
-            $shared_secret = $settings['shared_secret'];
-            $promptpay_payload = $settings['promptpay_payload'];
+            $n8n_url = isset($settings['n8n_webhook_url']) ? $settings['n8n_webhook_url'] : '';
+            $shared_secret = isset($settings['shared_secret']) ? $settings['shared_secret'] : '';
             $store_id = get_bloginfo('name');
 
             if (empty($n8n_url) || empty($shared_secret)) {
                 throw new Exception('Gateway not configured properly');
             }
 
-            // Get attachment URL
-            $attachment_url = wp_get_attachment_url($attachment_id);
             $attachment_path = get_attached_file($attachment_id);
 
             // Strip EXIF data
@@ -175,21 +176,17 @@ class SAN8N_REST_API {
                     'content' => file_get_contents($attachment_path),
                     'type' => mime_content_type($attachment_path)
                 ),
-                'order' => wp_json_encode(array(
-                    'cart_total' => $cart_total,
-                    'currency' => 'THB',
-                    'cart_hash' => $cart_hash,
-                    'customer_email' => $customer_email
-                )),
-                'qr_payload' => $promptpay_payload,
+                'order_id' => $order_id,
+                'order_total' => $order_total,
+                'session_token' => $session_token,
+                'customer_email' => $customer_email,
                 'store_id' => $store_id
             ));
 
             // Generate HMAC signature
             $timestamp = time();
             $body_hash = hash('sha256', $body);
-            $signature_base = $timestamp . "\n" . $body_hash;
-            $signature = hash_hmac('sha256', $signature_base, $shared_secret);
+            $signature = hash_hmac('sha256', $timestamp . "\n" . $body_hash, $shared_secret);
 
             // Make request to n8n
             $response = wp_remote_post($n8n_url, array(
@@ -215,52 +212,56 @@ class SAN8N_REST_API {
             $response_body = wp_remote_retrieve_body($response);
             $response_data = json_decode($response_body, true);
 
-            // Validate timestamp in response
-            $response_timestamp = wp_remote_retrieve_header($response, 'x-promptpay-timestamp');
-            if (abs(time() - intval($response_timestamp)) > 300) {
-                throw new Exception('old_timestamp');
-            }
-
-            // Process response
             if ($response_code === 200 && isset($response_data['status'])) {
                 $status = $response_data['status'];
-                $approved_amount = isset($response_data['approved_amount']) ? floatval($response_data['approved_amount']) : 0;
+                $approved_amount = isset($response_data['approved_amount']) ? floatval($response_data['approved_amount']) : $order_total;
                 $reference_id = isset($response_data['reference_id']) ? sanitize_text_field($response_data['reference_id']) : '';
                 $reason = isset($response_data['reason']) ? sanitize_text_field($response_data['reason']) : '';
 
-                // Check amount tolerance
-                $tolerance = isset($settings['amount_tolerance']) ? floatval($settings['amount_tolerance']) : 0;
-                $amount_diff = abs($cart_total - $approved_amount);
+                if (WC()->session) {
+                    WC()->session->set(SAN8N_SESSION_FLAG, $status === 'approved');
+                    WC()->session->set('san8n_attachment_id', $attachment_id);
+                    WC()->session->set('san8n_approved_amount', $approved_amount);
+                }
+
+                if ($order_id > 0) {
+                    $order = wc_get_order($order_id);
+                    if ($order) {
+                        $order->update_meta_data('_san8n_status', $status);
+                        $order->update_meta_data('_san8n_reference_id', $reference_id);
+                        $order->update_meta_data('_san8n_approved_amount', $approved_amount);
+                        $order->update_meta_data('_san8n_attachment_id', $attachment_id);
+                        $order->update_meta_data('_san8n_last_checked', current_time('mysql'));
+                        if ($status === 'approved') {
+                            $order->payment_complete($reference_id);
+                            $order->add_order_note(sprintf(
+                                __('Payment approved via Scan & Pay (n8n). Reference: %s, Amount: %s THB', 'scanandpay-n8n'),
+                                $reference_id,
+                                wc_format_localized_price($approved_amount)
+                            ));
+                        } elseif ($status === 'rejected') {
+                            $order->update_meta_data('_san8n_reason', $reason);
+                            $order->add_order_note(sprintf(
+                                __('Payment rejected via Scan & Pay (n8n). Reason: %s', 'scanandpay-n8n'),
+                                $reason
+                            ));
+                        }
+                        $order->save();
+                    }
+                }
 
                 if ($status === 'approved') {
-                    if ($amount_diff <= $tolerance) {
-                        // Set session flags
-                        if (WC()->session) {
-                            WC()->session->set(SAN8N_SESSION_FLAG, true);
-                            WC()->session->set('san8n_attachment_id', $attachment_id);
-                            WC()->session->set('san8n_approved_amount', $approved_amount);
-                            WC()->session->set('san8n_cart_hash', $cart_hash);
-                        }
+                    $this->logger->info('Payment approved', array(
+                        'reference_id' => $reference_id,
+                        'amount' => $approved_amount
+                    ));
 
-                        $this->logger->info('Payment approved', array(
-                            'reference_id' => $reference_id,
-                            'amount' => $approved_amount
-                        ));
-
-                        return new WP_REST_Response(array(
-                            'status' => 'approved',
-                            'reference_id' => $reference_id,
-                            'approved_amount' => $approved_amount,
-                            'correlation_id' => $correlation_id
-                        ), 200);
-                    } else {
-                        $reason = sprintf(
-                            __('Amount mismatch. Expected: %s, Paid: %s', 'scanandpay-n8n'),
-                            wc_format_localized_price($cart_total),
-                            wc_format_localized_price($approved_amount)
-                        );
-                        $status = 'rejected';
-                    }
+                    return new WP_REST_Response(array(
+                        'status' => 'approved',
+                        'reference_id' => $reference_id,
+                        'approved_amount' => $approved_amount,
+                        'correlation_id' => $correlation_id
+                    ), 200);
                 }
 
                 if ($status === 'rejected') {
@@ -275,18 +276,16 @@ class SAN8N_REST_API {
                     ), 200);
                 }
 
-                // Pending status
                 return new WP_REST_Response(array(
                     'status' => 'pending',
                     'correlation_id' => $correlation_id
                 ), 200);
             }
 
-            // Handle error responses
             if (isset($response_data['error'])) {
                 $error_code = $response_data['error'];
                 $status_code = $this->get_error_status_code($error_code);
-                
+
                 return new WP_Error($error_code, $this->get_error_message($error_code), array('status' => $status_code));
             }
 
@@ -299,7 +298,7 @@ class SAN8N_REST_API {
 
             $error_code = $e->getMessage();
             $status_code = $this->get_error_status_code($error_code);
-            
+
             return new WP_Error($error_code, $this->get_error_message($error_code), array('status' => $status_code));
         }
     }

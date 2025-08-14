@@ -11,9 +11,7 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
     private $logger;
     private $n8n_webhook_url;
     private $shared_secret;
-    private $promptpay_payload;
-    private $amount_tolerance;
-    private $time_window;
+    private $qr_image_id;
     private $auto_place_order_classic;
     private $blocks_mode;
     private $allow_blocks_autosubmit_experimental;
@@ -42,9 +40,7 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
         $this->enabled = $this->get_option('enabled');
         $this->n8n_webhook_url = $this->get_option('n8n_webhook_url');
         $this->shared_secret = $this->get_option('shared_secret');
-        $this->promptpay_payload = $this->get_option('promptpay_payload');
-        $this->amount_tolerance = floatval($this->get_option('amount_tolerance', '0'));
-        $this->time_window = intval($this->get_option('time_window', '15'));
+        $this->qr_image_id = absint($this->get_option('qr_image_id', 0));
         $this->auto_place_order_classic = $this->get_option('auto_place_order_classic', 'yes') === 'yes';
         $this->blocks_mode = $this->get_option('blocks_mode', 'express');
         $this->allow_blocks_autosubmit_experimental = $this->get_option('allow_blocks_autosubmit_experimental', 'no') === 'yes';
@@ -86,12 +82,12 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                 'default' => __('Scan PromptPay QR code and upload payment slip for instant verification.', 'scanandpay-n8n'),
                 'desc_tip' => true,
             ),
-            'promptpay_payload' => array(
-                'title' => __('PromptPay Payload/ID', 'scanandpay-n8n'),
+            'qr_image_id' => array(
+                'title' => __('QR Image', 'scanandpay-n8n'),
                 'type' => 'text',
-                'description' => __('Your PromptPay ID or payload string for QR generation.', 'scanandpay-n8n'),
+                'description' => __('Select a QR code image from the Media Library.', 'scanandpay-n8n'),
                 'desc_tip' => true,
-                'custom_attributes' => array('required' => 'required')
+                'custom_attributes' => array('readonly' => 'readonly')
             ),
             'n8n_webhook_url' => array(
                 'title' => __('n8n Webhook URL', 'scanandpay-n8n'),
@@ -107,22 +103,6 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                 'description' => __('Shared secret for HMAC signature verification.', 'scanandpay-n8n'),
                 'desc_tip' => true,
                 'custom_attributes' => array('required' => 'required')
-            ),
-            'amount_tolerance' => array(
-                'title' => __('Amount Tolerance (THB)', 'scanandpay-n8n'),
-                'type' => 'number',
-                'description' => __('Maximum allowed difference between order amount and paid amount.', 'scanandpay-n8n'),
-                'default' => '0.00',
-                'desc_tip' => true,
-                'custom_attributes' => array('step' => '0.01', 'min' => '0')
-            ),
-            'time_window' => array(
-                'title' => __('Time Window (minutes)', 'scanandpay-n8n'),
-                'type' => 'number',
-                'description' => __('Time window for payment verification after slip upload.', 'scanandpay-n8n'),
-                'default' => '15',
-                'desc_tip' => true,
-                'custom_attributes' => array('min' => '5', 'max' => '60')
             ),
             'classic_settings' => array(
                 'title' => __('Classic Checkout Settings', 'scanandpay-n8n'),
@@ -237,29 +217,21 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
             echo wpautop(wp_kses_post($this->description));
         }
 
-        $order_total = WC()->cart->get_total('edit');
-        $qr_payload = $this->generate_qr_payload($order_total);
+        $qr_image_url = $this->qr_image_id ? wp_get_attachment_url($this->qr_image_id) : '';
         $session_token = $this->generate_session_token();
         
         ?>
         <div id="san8n-payment-fields" class="san8n-payment-container">
             <div class="san8n-qr-section">
-                <h4><?php esc_html_e('Step 1: Scan PromptPay QR Code', 'scanandpay-n8n'); ?></h4>
+                <h4><?php esc_html_e('Step 1: Scan QR Code', 'scanandpay-n8n'); ?></h4>
                 <div class="san8n-qr-container">
-                    <div class="san8n-qr-placeholder" data-payload="<?php echo esc_attr($qr_payload); ?>">
-                        <img src="<?php echo esc_url(SAN8N_PLUGIN_URL . 'assets/images/qr-placeholder.png'); ?>" 
-                             alt="<?php esc_attr_e('PromptPay QR Code', 'scanandpay-n8n'); ?>" />
-                    </div>
-                    <div class="san8n-amount-display">
-                        <?php 
-                        echo sprintf(
-                            /* translators: %s: order amount */
-                            __('Amount: %s THB', 'scanandpay-n8n'),
-                            wc_format_localized_price($order_total)
-                        ); 
-                        ?>
-                    </div>
+                    <?php if ($qr_image_url): ?>
+                        <img src="<?php echo esc_url($qr_image_url); ?>" alt="<?php esc_attr_e('Payment QR Code', 'scanandpay-n8n'); ?>" class="san8n-qr-image" />
+                    <?php else: ?>
+                        <p><?php esc_html_e('QR code unavailable. Please contact store support.', 'scanandpay-n8n'); ?></p>
+                    <?php endif; ?>
                 </div>
+                <p class="san8n-qr-instructions"><?php esc_html_e('Scan the QR code and enter the amount manually.', 'scanandpay-n8n'); ?></p>
             </div>
 
             <div class="san8n-upload-section">
@@ -352,7 +324,9 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
             'gateway_id' => $this->id,
             'auto_submit' => $this->auto_place_order_classic,
             'prevent_double_submit_ms' => $this->prevent_double_submit_ms,
-            'cart_hash' => WC()->cart ? WC()->cart->get_cart_hash() : '',
+            'order_id' => WC()->session ? WC()->session->get('order_awaiting_payment') : 0,
+            'order_total' => WC()->cart ? WC()->cart->total : 0,
+            'customer_email' => is_user_logged_in() ? wp_get_current_user()->user_email : '',
             'i18n' => array(
                 'verifying' => __('Verifying payment...', 'scanandpay-n8n'),
                 'approved' => __('Payment approved! Processing order...', 'scanandpay-n8n'),
@@ -362,7 +336,8 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                 'invalid_file_type' => __('Invalid file type. Please upload JPG or PNG.', 'scanandpay-n8n'),
                 'upload_required' => __('Please upload a payment slip.', 'scanandpay-n8n'),
                 'processing_order' => __('Processing order...', 'scanandpay-n8n'),
-                'verify_payment' => __('Verify Payment', 'scanandpay-n8n')
+                'verify_payment' => __('Verify Payment', 'scanandpay-n8n'),
+                'verify_before_submit' => __('Please verify your payment before placing the order.', 'scanandpay-n8n')
             )
         ));
 
@@ -380,16 +355,6 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
         // Validate session flag
         if (!WC()->session->get(SAN8N_SESSION_FLAG)) {
             wc_add_notice(__('Payment session expired. Please verify payment again.', 'scanandpay-n8n'), 'error');
-            return false;
-        }
-
-        // Check cart hash
-        $stored_cart_hash = WC()->session->get('san8n_cart_hash');
-        $current_cart_hash = WC()->cart->get_cart_hash();
-        
-        if ($stored_cart_hash !== $current_cart_hash) {
-            WC()->session->set(SAN8N_SESSION_FLAG, false);
-            wc_add_notice(__('Cart has been modified. Please verify payment again.', 'scanandpay-n8n'), 'error');
             return false;
         }
 
@@ -442,7 +407,6 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
         WC()->session->set(SAN8N_SESSION_FLAG, false);
         WC()->session->set('san8n_attachment_id', null);
         WC()->session->set('san8n_approved_amount', null);
-        WC()->session->set('san8n_cart_hash', null);
 
         // Log success
         $this->logger->info('Payment processed successfully', array(
@@ -455,11 +419,6 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
             'result' => 'success',
             'redirect' => $this->get_return_url($order)
         );
-    }
-
-    private function generate_qr_payload($amount) {
-        // Placeholder for v1 - actual EMVCo implementation in v2
-        return base64_encode($this->promptpay_payload . '|' . $amount);
     }
 
     private function generate_session_token() {

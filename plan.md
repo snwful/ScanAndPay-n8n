@@ -4,13 +4,13 @@
 Static QR (Media Library) + simplified slip verification via n8n (mock).
 
 ## Tasks
-- [ ] Add `qr_image_id` setting (media picker), remove `promptpay_payload`
-- [ ] Render QR image in checkout (no dynamic price)
-- [ ] JS: send slip with {session_token, order_id, order_total, (email?)}
-- [ ] REST: accept new params; forward to n8n (mock); trust decision
-- [ ] Remove dynamic-price/cart-hash resets
-- [ ] Bump version + add readme.txt changelog
-- [ ] Update docs: context.md, AGENTS.md, plan.md
+- [x] Add `qr_image_id` setting (media picker), remove `promptpay_payload`
+- [x] Render QR image in checkout (no dynamic price)
+- [x] JS: send slip with {session_token, order_id, order_total, (email?)}
+- [x] REST: accept new params; forward to n8n (mock); trust decision
+- [x] Remove dynamic-price/cart-hash resets
+- [x] Bump version + add readme.txt changelog
+- [x] Update docs: context.md, AGENTS.md, plan.md
 
 ## Risks/Mitigations
 - Blocks vs Classic → ship Classic first; gate others

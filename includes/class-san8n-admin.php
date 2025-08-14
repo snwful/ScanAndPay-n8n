@@ -238,6 +238,12 @@ class SAN8N_Admin {
 
         // Settings page
         if ($hook === 'woocommerce_page_wc-settings') {
+            wp_enqueue_media();
+
+            $settings = get_option(SAN8N_OPTIONS_KEY, array());
+            $qr_image_id = isset($settings['qr_image_id']) ? absint($settings['qr_image_id']) : 0;
+            $qr_image_url = $qr_image_id ? wp_get_attachment_url($qr_image_id) : '';
+
             wp_enqueue_script(
                 'san8n-settings',
                 SAN8N_PLUGIN_URL . 'assets/js/settings.js',
@@ -249,10 +255,13 @@ class SAN8N_Admin {
             wp_localize_script('san8n-settings', 'san8n_settings', array(
                 'ajax_url' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('san8n_test_webhook'),
+                'qr_image_url' => $qr_image_url,
                 'i18n' => array(
                     'testing' => __('Testing...', 'scanandpay-n8n'),
                     'test_success' => __('Webhook test successful! Latency: %dms', 'scanandpay-n8n'),
-                    'test_failed' => __('Webhook test failed: %s', 'scanandpay-n8n')
+                    'test_failed' => __('Webhook test failed: %s', 'scanandpay-n8n'),
+                    'select_image' => __('Select Image', 'scanandpay-n8n'),
+                    'remove_image' => __('Remove', 'scanandpay-n8n')
                 )
             ));
         }

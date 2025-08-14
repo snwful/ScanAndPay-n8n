@@ -24,7 +24,7 @@ const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
     const [showExpressButton, setShowExpressButton] = useState(false);
 
     // Get cart total
-    const cartTotal = window.wc.wcBlocksData.getSetting('cartTotals', {}).total_price / 100;
+    const orderTotal = parseFloat(settings.order_total || 0);
 
     useEffect(() => {
         // Handle payment setup
@@ -116,8 +116,11 @@ const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
         const formData = new FormData();
         formData.append('slip_image', slipFile);
         formData.append('session_token', Date.now().toString());
-        formData.append('cart_total', cartTotal);
-        formData.append('cart_hash', window.wc.wcBlocksData.getSetting('cartHash', ''));
+        formData.append('order_id', settings.order_id || 0);
+        formData.append('order_total', orderTotal);
+        if (settings.customer_email) {
+            formData.append('customer_email', settings.customer_email);
+        }
 
         try {
             const response = await fetch(settings.rest_url + '/verify-slip', {
@@ -142,7 +145,7 @@ const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
         } finally {
             setIsVerifying(false);
         }
-    }, [slipFile, cartTotal]);
+    }, [slipFile, orderTotal]);
 
     const handleVerificationResponse = (response) => {
         setVerificationStatus(response.status);
@@ -186,13 +189,13 @@ const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
             <div className="san8n-qr-section">
                 <h4>{settings.i18n.scan_qr}</h4>
                 <div className="san8n-qr-container">
-                    <img 
-                        src={settings.settings.qr_placeholder} 
-                        alt="PromptPay QR Code"
+                    <img
+                        src={settings.settings.qr_image_url}
+                        alt="Payment QR Code"
                         className="san8n-qr-placeholder"
                     />
                     <div className="san8n-amount-display">
-                        {settings.i18n.amount_label.replace('%s', cartTotal.toFixed(2))}
+                        {settings.i18n.amount_label.replace('%s', orderTotal.toFixed(2))}
                     </div>
                 </div>
             </div>

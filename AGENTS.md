@@ -13,10 +13,10 @@ Rules and map for agents (Codex/Windsurf/Cursor) to work safely on this WooComme
 - context.md / instructions.md / evaluation.md / plan.md
 
 ## Current Mission
-- Replace dynamic QR with static Media Library image
-- Slip verify via n8n (mock ok); trust n8n decision
-- Remove dynamic-price logic & promptpay_payload
-- Keep security: nonce, file type/size, strip EXIF, caps
+- Static QR via Media Library with simplified slip verification
+- Trust n8n decision for approved/rejected (mock OK)
+- Maintain security: nonce, file type/size, strip EXIF, caps
+- Next: integrate real bank API
 
 ## API (internal → n8n)
 POST /wp-json/wc-scanandpay/v1/verify-slip  (multipart)

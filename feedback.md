@@ -1,11 +1,16 @@
-Feedback Instructions for Codex
+# Feedback
 
-After completing the code refactor, provide a concise report covering the following points:
+## Summary of Changes
+- Implemented static QR image selection via Media Library (`qr_image_id`) and removed PromptPay payload settings.
+- Checkout now renders the chosen QR image and sends `{slip_image, session_token, order_id, order_total, customer_email}` to the REST API.
+- REST endpoint forwards data to n8n (mock) and updates orders based on approved/rejected status.
+- Removed cart-hash and dynamic-price logic across PHP and JS; added version bump and changelog.
 
-Summary of Changes – Describe the major modifications you made (e.g., removed dynamic QR generation, added QR image field, simplified verification payload) and how they satisfy the requirements.
+## Potential Issues or Blind Spots
+- Blocks checkout path was updated but hasn't been fully tested; further QA is recommended.
+- Media Library picker relies on `wp_enqueue_media` and may need cross-version testing.
 
-Potential Issues or Blind Spots – Note any assumptions or areas that might need further clarification. For example, if the Media Library field required custom JavaScript, mention that it may need additional testing across different WordPress versions.
-
-Future Improvements – Suggest forward‑thinking enhancements, such as integrating the real bank verification API, handling different currencies, or improving the UI for slip verification.
-
-Structure the feedback as bullet points or short paragraphs. Aim to be honest and constructive, highlighting strengths and weaknesses of the solution.
+## Future Improvements
+- Integrate real bank verification API in n8n flow.
+- Add automated end-to-end tests for slip upload and approval.
+- Consider additional validation for order context when verifying slips.
