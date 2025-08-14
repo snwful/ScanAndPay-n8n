@@ -4,7 +4,7 @@ Tags: woocommerce, payment gateway, promptpay, qr code, thailand
 Requires at least: 6.0
 Tested up to: 6.4
 Requires PHP: 8.0
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -182,6 +182,11 @@ Configurable retention period (default 30 days) with automatic cleanup.
 Yes, administrators can manually approve or reject payments from the order edit page.
 
 == Changelog ==
+
+= 1.1.1 - 2025-08-28 =
+* Make checkout QR responsive using `wp_get_attachment_image()` with `srcset`/`sizes`.
+* Load QR stylesheet only on checkout and order-pay pages.
+* Prevent QR overflow on small screens.
 
 = 1.1.0 - 2025-08-14 =
 * Added static QR image setting with Media Library picker.

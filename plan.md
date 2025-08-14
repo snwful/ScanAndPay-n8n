@@ -1,26 +1,27 @@
-# plan.md — Sprint Plan (2025-08-14)
+# plan.md — Sprint Plan (2025-08-28)
 
 ## Goal
-Static QR (Media Library) + simplified slip verification via n8n (mock).
+Make checkout QR responsive across devices.
 
 ## Tasks
-- [x] Add `qr_image_id` setting (media picker), remove `promptpay_payload`
-- [x] Render QR image in checkout (no dynamic price)
-- [x] JS: send slip with {session_token, order_id, order_total, (email?)}
-- [x] REST: accept new params; forward to n8n (mock); trust decision
-- [x] Remove dynamic-price/cart-hash resets
-- [x] Bump version + add readme.txt changelog
-- [x] Update docs: context.md, AGENTS.md, plan.md
+- [x] Replace raw `<img>` with `wp_get_attachment_image()` + `srcset`/`sizes`.
+- [x] Create `assets/css/frontend.css` and enqueue only on checkout/order-pay.
+- [x] Ensure no overflow ≤360px; gate Blocks path until QA.
+- [x] PHPCS run; bump version/changelog; update docs.
 
 ## Risks/Mitigations
-- Blocks vs Classic → ship Classic first; gate others
-- Admin caps → restrict media picker to manage_woocommerce
+- Theme overrides may affect QR size → scope selectors carefully.
+- Blocks checkout needs separate handling → gate for now.
 
 ## Acceptance Criteria
-- Settings/checkout/REST flow works E2E with mock
-- No references to generate_qr_payload or promptpay_payload
-- PHPCS passes
+- QR responsive via `wp_get_attachment_image()` with effective `sizes`.
+- Frontend CSS loads only on checkout/order-pay.
+- No horizontal scroll on mobile ≤360px.
+- plan.md updated; evaluation checks pass.
+
+## Done
+- Responsive QR implemented and stylesheet enqueued conditionally.
 
 ## Next
-- Integrate real bank-API via n8n
-- Add e2e smoke tests (upload → approved)
+- Integrate real bank-API via n8n.
+- Add e2e smoke tests (upload → approved).

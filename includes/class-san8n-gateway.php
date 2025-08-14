@@ -217,19 +217,30 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
             echo wpautop(wp_kses_post($this->description));
         }
 
-        $qr_image_url = $this->qr_image_id ? wp_get_attachment_url($this->qr_image_id) : '';
         $session_token = $this->generate_session_token();
-        
+
         ?>
-        <div id="san8n-payment-fields" class="san8n-payment-container">
+        <div id="san8n-payment-fields" class="san8n-payment-fields">
             <div class="san8n-qr-section">
                 <h4><?php esc_html_e('Step 1: Scan QR Code', 'scanandpay-n8n'); ?></h4>
                 <div class="san8n-qr-container">
-                    <?php if ($qr_image_url): ?>
-                        <img src="<?php echo esc_url($qr_image_url); ?>" alt="<?php esc_attr_e('Payment QR Code', 'scanandpay-n8n'); ?>" class="san8n-qr-image" />
-                    <?php else: ?>
-                        <p><?php esc_html_e('QR code unavailable. Please contact store support.', 'scanandpay-n8n'); ?></p>
-                    <?php endif; ?>
+                    <?php
+                    if ($this->qr_image_id) {
+                        echo wp_get_attachment_image(
+                            $this->qr_image_id,
+                            apply_filters('san8n_qr_image_size', 'medium_large'),
+                            false,
+                            array(
+                                'class'   => 'san8n-qr',
+                                'loading' => 'lazy',
+                                'decoding' => 'async',
+                                'sizes'   => apply_filters('san8n_qr_image_sizes', '(max-width: 480px) 90vw, (max-width: 768px) 70vw, 420px'),
+                            )
+                        );
+                    } else {
+                        echo '<p>' . esc_html__('QR code unavailable. Please contact store support.', 'scanandpay-n8n') . '</p>';
+                    }
+                    ?>
                 </div>
                 <p class="san8n-qr-instructions"><?php esc_html_e('Scan the QR code and enter the amount manually.', 'scanandpay-n8n'); ?></p>
             </div>

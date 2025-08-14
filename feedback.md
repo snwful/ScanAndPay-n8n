@@ -10,6 +10,9 @@
 - Blocks checkout path was updated but hasn't been fully tested; further QA is recommended.
 - Media Library picker relies on `wp_enqueue_media` and may need cross-version testing.
 
+## Mobile QA Results
+- Tested at 360px viewport: QR fits and no horizontal scroll.
+
 ## Future Improvements
 - Integrate real bank verification API in n8n flow.
 - Add automated end-to-end tests for slip upload and approval.

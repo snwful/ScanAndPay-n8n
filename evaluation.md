@@ -14,6 +14,10 @@ Checkout page:
 
 The chosen QR image is displayed to customers in place of the dynamically generated QR code.
 
+QR markup uses `wp_get_attachment_image()` with effective `srcset`/`sizes` for responsiveness.
+
+No overflow or horizontal scroll occurs on screens ≤360px.
+
 Customers can upload a slip file (JPG/PNG) and see a preview. The verify button triggers a request containing order_id, order_total, session_token and the image file; no cart_hash or cart_total are sent
 GitHub
 .
@@ -41,6 +45,8 @@ The plugin version constant and header are bumped to a new version, and the read
 A plan.md file exists and describes the current update’s goals, tasks, and outstanding work.
 
 Translation functions (__() and _e()) are used consistently for any new strings.
+
+Frontend stylesheet `assets/css/frontend.css` is enqueued only on checkout or order-pay pages.
 
 Security & Standards
 

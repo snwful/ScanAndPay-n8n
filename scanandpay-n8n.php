@@ -3,7 +3,7 @@
  * Plugin Name: Scan & Pay (n8n)
  * Plugin URI: https://github.com/your-org/scanandpay-n8n
  * Description: PromptPay payment gateway with inline slip verification via n8n
- * Version: 1.1.0
+ * Version: 1.1.1
  * Author: Your Company
  * Author URI: https://yourcompany.com
  * Text Domain: scanandpay-n8n
@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('SAN8N_VERSION', '1.1.0');
+define('SAN8N_VERSION', '1.1.1');
 define('SAN8N_PLUGIN_FILE', __FILE__);
 define('SAN8N_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SAN8N_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -65,10 +65,10 @@ function san8n_init_gateway() {
     add_filter('woocommerce_payment_gateways', 'san8n_add_gateway');
 
     // Initialize Blocks support
-    add_action('woocommerce_blocks_loaded', 'san8n_blocks_support');
+add_action('woocommerce_blocks_loaded', 'san8n_blocks_support');
 
-    // Schedule cron events
-    san8n_schedule_cron_events();
+// Schedule cron events
+san8n_schedule_cron_events();
 }
 
 function san8n_add_gateway($gateways) {
@@ -84,6 +84,19 @@ function san8n_blocks_support() {
             function($payment_method_registry) {
                 $payment_method_registry->register(new SAN8N_Blocks_Integration());
             }
+        );
+    }
+}
+
+add_action('wp_enqueue_scripts', 'san8n_enqueue_frontend_styles');
+
+function san8n_enqueue_frontend_styles() {
+    if (is_checkout() || is_wc_endpoint_url('order-pay')) {
+        wp_enqueue_style(
+            'san8n-frontend',
+            SAN8N_PLUGIN_URL . 'assets/css/frontend.css',
+            array(),
+            SAN8N_VERSION
         );
     }
 }

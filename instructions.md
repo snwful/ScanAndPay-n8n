@@ -80,3 +80,10 @@ After modifications, verify that the plugin activates without errors and the set
 On the checkout page, the QR image should display, slip upload should function, and the mock verification should update the order status as expected.
 
 Maintain backwards‑compatible hooks and filters where possible. If you remove an option, consider cleaning up its value on plugin activation or migration.
+
+7. Responsive QR
+
+- Replace any raw `<img>` output with `wp_get_attachment_image()` using `srcset` and `sizes` filters.
+- Create `assets/css/frontend.css` to constrain the QR and prevent overflow.
+- Enqueue the stylesheet only on checkout or order-pay pages.
+- Run PHPCS, bump the plugin version to 1.1.1, and append the changelog.
