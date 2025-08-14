@@ -183,6 +183,12 @@ Yes, administrators can manually approve or reject payments from the order edit 
 
 == Changelog ==
 
+= 1.1.1 - 2025-08-14 =
+* Added: container-based responsive QR with wrapper and centered layout
+* Added: assets/css/frontend.css scoped to checkout/order-pay
+* Fixed: image overflow on narrow screens
+* Docs updated: AGENTS/context/instructions/evaluation/plan
+
 = 1.1.0 - 2025-08-14 =
 * Added static QR image setting with Media Library picker.
 * Simplified slip verification flow via n8n.

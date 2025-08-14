@@ -22,6 +22,8 @@ Create or update plan.md. Generate a markdown file called plan.md in the root of
 
 Replace dynamic QR generation. In the payment_fields() method, remove calls to WC()->cart->get_total() and $this->generate_qr_payload(). Instead, retrieve the QR image URL via wp_get_attachment_url($this->qr_image_id) and echo an <img> tag showing that image. Provide instructions to the customer to scan the QR and enter the amount manually.
 
+Wrap the image with a container and inner wrapper, rendering it via wp_get_attachment_image() with responsive srcset/sizes. Enqueue a new assets/css/frontend.css only on checkout or order-pay so the layout remains scoped.
+
 Retain the slip upload UI. The file input (#san8n-slip-upload), preview area and verify button can remain. Ensure the data attribute data-max-size still reflects the configured file size limit.
 
 Remove hidden inputs related to dynamic price, such as any hidden fields storing san8n-approved-amount or san8n-session-cart-total that are no longer needed.
@@ -80,3 +82,5 @@ After modifications, verify that the plugin activates without errors and the set
 On the checkout page, the QR image should display, slip upload should function, and the mock verification should update the order status as expected.
 
 Maintain backwards‑compatible hooks and filters where possible. If you remove an option, consider cleaning up its value on plugin activation or migration.
+
+Run `phpcs` to ensure WordPress coding standards before submitting changes and bump versions/changelog accordingly.

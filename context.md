@@ -11,6 +11,9 @@ Current Flow
 
 Security considerations include nonce checks, file type/size validation, EXIF stripping and rate limiting.
 
+### Responsive QR
+Mobile users reported QR images overflowing on narrow screens. To ensure consistent sizing across themes, responsiveness is now handled inside the plugin via a container and wrapper around the image.
+
 Future Work
 
 Integrate real bank verification via n8n and expand automated tests.

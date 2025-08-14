@@ -9,6 +9,7 @@ Rules and map for agents (Codex/Windsurf/Cursor) to work safely on this WooComme
 - includes/class-san8n-rest-api.php (POST /verify-slip)
 - assets/js/checkout-inline.js (classic checkout)
 - assets/js/settings.js (admin UX)
+- assets/css/frontend.css (responsive checkout styles)
 - readme.txt (Changelog)
 - context.md / instructions.md / evaluation.md / plan.md
 
@@ -28,10 +29,13 @@ n8n → { status: approved|rejected, reference_id?, approved_amount?, reason? }
 - Append readme.txt changelog with date + bullets
 - Update plan.md in each PR/iteration
 - PHPCS clean; WP/WC compatibility intact
+- Use wp_get_attachment_image with container-based sizing
+- Enqueue frontend CSS only on checkout/order-pay
 
 ## Do / Don’t
 - ✅ Use wp_get_attachment_url(qr_image_id)
 - ✅ Localize data via wp_localize_script
+- ✅ Use container + wrapper for QR; center image
 - ❌ No dynamic QR payload / cart_hash gating
 - ❌ Don’t add new deps without reason
 
@@ -42,3 +46,4 @@ n8n → { status: approved|rejected, reference_id?, approved_amount?, reason? }
 - Removed generate_qr_payload & related JS resets
 - Version bumped + readme.txt changelog updated
 - plan.md updated; evaluation.md checks pass
+- No horizontal scroll ≤360–375px; QR never overflows

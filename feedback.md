@@ -9,6 +9,7 @@
 ## Potential Issues or Blind Spots
 - Blocks checkout path was updated but hasn't been fully tested; further QA is recommended.
 - Media Library picker relies on `wp_enqueue_media` and may need cross-version testing.
+- Responsive QR tested on 360×800, 375×812, 412×915 — no overflow observed.
 
 ## Future Improvements
 - Integrate real bank verification API in n8n flow.

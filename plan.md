@@ -11,6 +11,7 @@ Static QR (Media Library) + simplified slip verification via n8n (mock).
 - [x] Remove dynamic-price/cart-hash resets
 - [x] Bump version + add readme.txt changelog
 - [x] Update docs: context.md, AGENTS.md, plan.md
+- [x] Add responsive QR wrapper + scoped CSS enqueue
 
 ## Risks/Mitigations
 - Blocks vs Classic → ship Classic first; gate others
@@ -20,6 +21,7 @@ Static QR (Media Library) + simplified slip verification via n8n (mock).
 - Settings/checkout/REST flow works E2E with mock
 - No references to generate_qr_payload or promptpay_payload
 - PHPCS passes
+- QR capped at 420px desktop / 150px mobile; no horizontal scroll ≤375px
 
 ## Next
 - Integrate real bank-API via n8n

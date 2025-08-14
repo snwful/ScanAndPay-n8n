@@ -57,6 +57,16 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
         // Hooks
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
         add_action('wp_enqueue_scripts', array($this, 'payment_scripts'));
+        add_action('wp_enqueue_scripts', function () {
+            if (function_exists('is_checkout') && (is_checkout() || is_wc_endpoint_url('order-pay'))) {
+                wp_enqueue_style(
+                    'san8n-frontend',
+                    plugins_url('assets/css/frontend.css', SAN8N_PLUGIN_FILE),
+                    array(),
+                    defined('SAN8N_VERSION') ? SAN8N_VERSION : null
+                );
+            }
+        });
         add_action('woocommerce_admin_order_data_after_billing_address', array($this, 'display_admin_order_meta'), 10, 1);
     }
 
@@ -217,23 +227,37 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
             echo wpautop(wp_kses_post($this->description));
         }
 
-        $qr_image_url = $this->qr_image_id ? wp_get_attachment_url($this->qr_image_id) : '';
         $session_token = $this->generate_session_token();
-        
-        ?>
-        <div id="san8n-payment-fields" class="san8n-payment-container">
-            <div class="san8n-qr-section">
-                <h4><?php esc_html_e('Step 1: Scan QR Code', 'scanandpay-n8n'); ?></h4>
-                <div class="san8n-qr-container">
-                    <?php if ($qr_image_url): ?>
-                        <img src="<?php echo esc_url($qr_image_url); ?>" alt="<?php esc_attr_e('Payment QR Code', 'scanandpay-n8n'); ?>" class="san8n-qr-image" />
-                    <?php else: ?>
-                        <p><?php esc_html_e('QR code unavailable. Please contact store support.', 'scanandpay-n8n'); ?></p>
-                    <?php endif; ?>
-                </div>
-                <p class="san8n-qr-instructions"><?php esc_html_e('Scan the QR code and enter the amount manually.', 'scanandpay-n8n'); ?></p>
-            </div>
 
+        echo '<div id="san8n-payment-fields" class="san8n-payment-fields">';
+        echo '  <div class="san8n-qr-section">';
+        echo '    <h4>' . esc_html__('Step 1: Scan QR Code', 'scanandpay-n8n') . '</h4>';
+        echo '    <div class="san8n-qr-container"><div class="san8n-qr-wrapper">';
+        if ($this->qr_image_id) {
+            echo wp_get_attachment_image(
+                $this->qr_image_id,
+                apply_filters('san8n_qr_image_size', 'medium_large'),
+                false,
+                array(
+                    'class'    => 'san8n-qr',
+                    'loading'  => 'lazy',
+                    'decoding' => 'async',
+                    'sizes'    => apply_filters(
+                        'san8n_qr_image_sizes',
+                        '(max-width: 375px) 150px, 420px'
+                    ),
+                )
+            );
+        } else {
+            echo '<p>' . esc_html__('QR code unavailable. Please contact store support.', 'scanandpay-n8n') . '</p>';
+        }
+        echo '    </div></div>';
+        echo '    <p class="san8n-qr-instructions">' .
+             esc_html__('Scan the QR code and enter the amount manually.', 'scanandpay-n8n') .
+             '</p>';
+        echo '  </div>';
+
+        ?>
             <div class="san8n-upload-section">
                 <h4><?php esc_html_e('Step 2: Upload Payment Slip', 'scanandpay-n8n'); ?></h4>
                 <div class="san8n-upload-container">

@@ -1,0 +1,36 @@
+/* Scope to Woo payment box to avoid theme bleed */
+.payment_box .san8n-qr-section,
+.payment_box .san8n-qr-container{
+  width:100%; max-width:100%;
+  box-sizing:border-box; overflow:hidden;
+  display:grid; justify-items:center;
+}
+
+/* Wrapper caps width but shrinks on small screens */
+.payment_box .san8n-qr-wrapper{
+  inline-size:min(100%, var(--san8n-qr-max, 420px));
+  overflow:hidden;
+}
+
+/* Image obeys the wrapper; guard against theme overrides */
+.payment_box img.san8n-qr{
+  display:block;
+  max-inline-size:100%;
+  max-width:100%;     /* fallback for older themes */
+  width:100%;         /* ensure it fills wrapper */
+  height:auto;
+  object-fit:contain;
+  border-radius:8px;
+}
+
+.payment_box .san8n-qr-instructions{ text-align:center; opacity:.85; margin-top:.5rem; }
+
+/* Mobile caps (iPhone 11 Pro = 375px) */
+@media (max-width:375px){
+  .payment_box .san8n-qr-wrapper{ inline-size:150px; }
+}
+
+/* Optional slightly tighter padding on tiny screens */
+@media (max-width:480px){
+  .payment_box{ padding:12px !important; }
+}

@@ -14,6 +14,10 @@ Checkout page:
 
 The chosen QR image is displayed to customers in place of the dynamically generated QR code.
 
+QR image is wrapped in a container and wrapper element; image rendered via wp_get_attachment_image() with responsive sizes and srcset.
+
+On 360×800, 375×812, and 412×915 viewports, no horizontal scrollbars appear and the QR never overflows.
+
 Customers can upload a slip file (JPG/PNG) and see a preview. The verify button triggers a request containing order_id, order_total, session_token and the image file; no cart_hash or cart_total are sent
 GitHub
 .
