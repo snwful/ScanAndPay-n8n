@@ -22,14 +22,17 @@ GitHub
 
 Desired Changes
 
-The merchant now wants to accept payments via a static QR image rather than generating a dynamic QR code for every order. Customers will scan the static QR and enter the amount themselves. A separate API (called by n8n) will validate the slip image against the bank to ensure it is authentic. The plugin should therefore:
+We will render the PromptPay QR using the existing PromptPay plugin’s shortcode and lock the amount only, while loading the PromptPay ID from the PromptPay plugin settings. Customers will scan the QR in their banking app with the amount prefilled (locked by QR). The plugin should therefore:
 
-Allow administrators to choose a QR image from the Media Library instead of entering a PromptPay payload/ID.
+- Replace any custom QR generation with `echo do_shortcode('[promptpayqr amount="{numeric_cart_total}"]')` inside `payment_fields()` of `includes/class-san8n-gateway.php`.
+- Do not pass `id` to the shortcode; rely on the ID configured in `promptpay/promptpay.php` settings.
+- Remove any use of `promptpay_payload` and `generate_qr_payload()` across PHP/JS.
+- Simplify slip verification data – send the slip image and identifiers such as `order_id`, `order_total`, and `session_token` to n8n. No need to send `cart_total` or a cart hash.
+- Continue to display the upload and verification UI and update order status based on n8n’s response.
 
-Remove all dynamic price calculation. The amount on the slip will not be derived from the cart; the customer will enter the correct amount manually, and n8n will check it.
+These changes require coordinated modifications across PHP (gateway settings cleanup, checkout rendering, REST API) and JavaScript (checkout behaviour and payload simplification).
 
-Simplify slip verification data – send only the slip image plus identifiers such as order_id and order_total to n8n. The plugin no longer needs to include cart_total or a cart hash in the verification call.
+Roadmap
 
-Continue to display upload and verification UI to customers and update order status based on n8n’s response.
-
-These changes require coordinated modifications across PHP (gateway settings, checkout rendering and REST API) and JavaScript (checkout behaviour). The sections below explain how to perform these changes.
+- Medium term: Re-render the QR when WooCommerce triggers `update_checkout` by fetching fresh shortcode HTML via AJAX so the locked amount always reflects the latest total.
+- Long term: Implement WooCommerce Blocks support with a separate integration (React-based), since Blocks do not render `payment_fields()`.

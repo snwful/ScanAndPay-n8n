@@ -1,27 +1,32 @@
 # plan.md — Sprint Plan (2025-08-14)
 
 ## Goal
-Static QR (Media Library) + simplified slip verification via n8n (mock).
+Use PromptPay shortcode to render QR with locked amount (ID from PromptPay plugin settings). Simplify slip verification payload and remove custom QR payload logic. Classic checkout only in this iteration.
 
 ## Tasks
-- [ ] Add `qr_image_id` setting (media picker), remove `promptpay_payload`
-- [ ] Render QR image in checkout (no dynamic price)
-- [ ] JS: send slip with {session_token, order_id, order_total, (email?)}
+- [ ] Remove `promptpay_payload` option and any code usage
+- [ ] In `payment_fields()`, output `[promptpayqr amount="{float_cart_total}"]`; do not pass `id`
+- [ ] Add fallback notice + `assets/images/qr-placeholder.svg` when shortcode unavailable
+- [ ] JS: send slip with {session_token, order_id, order_total} only (no cart_total/cart_hash)
 - [ ] REST: accept new params; forward to n8n (mock); trust decision
-- [ ] Remove dynamic-price/cart-hash resets
+- [ ] Remove legacy dynamic-price resets
 - [ ] Bump version + add readme.txt changelog
-- [ ] Update docs: context.md, AGENTS.md, plan.md
+- [ ] Update docs: context.md, AGENTS.md, instructions.md, evaluation.md, feedback.md, plan.md
 - [x] Improve small-screen responsive layout for payment UI
 
 ## Risks/Mitigations
-- Blocks vs Classic → ship Classic first; gate others
-- Admin caps → restrict media picker to manage_woocommerce
+- PromptPay plugin inactive → show fallback SVG + admin notice; document dependency
+- Amount formatting → always cast to float; avoid localized strings
+- Blocks vs Classic → ship Classic first; blocks tracked in roadmap
 
 ## Acceptance Criteria
-- Settings/checkout/REST flow works E2E with mock
-- No references to generate_qr_payload or promptpay_payload
+- Checkout renders PromptPay QR via shortcode with amount locked to cart total
+- REST + JS flow works E2E with mock; payload excludes cart_total/cart_hash
+- No references to `generate_qr_payload` or `promptpay_payload`
 - PHPCS passes
 
 ## Next
+- Medium: AJAX re-render of shortcode on `update_checkout` to keep amount in sync
+- Long: WooCommerce Blocks support (dedicated Blocks payment method)
 - Integrate real bank-API via n8n
 - Add e2e smoke tests (upload → approved)

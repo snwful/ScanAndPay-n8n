@@ -6,25 +6,21 @@ Functional Tests
 
 Settings page:
 
-A new “QR Image” field appears in the Scan & Pay (n8n) gateway settings. The field allows selecting an image from the WordPress Media Library.
+- The gateway no longer uses a QR image setting. No Media Library field is added.
 
-The old “PromptPay Payload/ID” field and related validators are removed.
+- The gateway’s own “PromptPay Payload/ID” field and related validators are removed; the PromptPay ID is sourced from the PromptPay plugin’s settings.
 
 Checkout page:
 
-The chosen QR image is displayed to customers in place of the dynamically generated QR code.
+- The PromptPay QR is rendered via shortcode: `[promptpayqr amount="{cart_total_float}"]`, locking the amount to the current cart/order total.
 
-Customers can upload a slip file (JPG/PNG) and see a preview. The verify button triggers a request containing order_id, order_total, session_token and the image file; no cart_hash or cart_total are sent
-GitHub
-.
+- Customers can upload a slip file (JPG/PNG) and see a preview. The verify button triggers a request containing order_id, order_total, session_token and the image file; no cart_hash or cart_total are sent.
 
-No JavaScript errors appear in the console; the previous logic for resetting approval on cart updates is absent.
+No JavaScript errors appear in the console; legacy logic specific to custom QR payloads is removed.
 
 REST API:
 
-POST requests to /verify-slip accept order_id, order_total, slip_image and session_token but not cart_total/cart_hash
-GitHub
-.
+POST requests to /verify-slip accept order_id, order_total, slip_image and session_token but not cart_total/cart_hash.
 
 Upon receiving a mock “approved” response, the order status changes to “processing” or “completed”, meta fields are updated, and a success message is returned. A mock “rejected” response should result in an appropriate error message.
 
@@ -52,8 +48,8 @@ The plugin continues to conform to WordPress coding standards (indentation, nami
 
 User Experience
 
-The admin interface remains intuitive; selecting a QR image should not require manual URL entry.
+The admin interface remains intuitive; no extra QR image settings are required.
 
-Customers are clearly instructed to scan the QR and enter the correct amount manually.
+Customers are clearly instructed to scan the QR; their banking app shows the locked amount from the QR.
 
 Error messages remain informative and are translated via language files where possible.
