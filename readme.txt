@@ -4,7 +4,7 @@ Tags: woocommerce, payment gateway, promptpay, qr code, thailand
 Requires at least: 6.0
 Tested up to: 6.4
 Requires PHP: 8.0
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -183,6 +183,9 @@ Yes, administrators can manually approve or reject payments from the order edit 
 
 == Changelog ==
 
+= 1.0.1 - 2025-08-16 =
+* Improved small-screen responsive layout for Scan & Pay checkout
+
 = 1.0.0 =
 * Initial release
 * Classic checkout support with auto-submit
@@ -194,6 +197,9 @@ Yes, administrators can manually approve or reject payments from the order edit 
 * Full i18n and RTL support
 
 == Upgrade Notice ==
+
+= 1.0.1 =
+Improved small-screen responsive layout for Scan & Pay checkout.
 
 = 1.0.0 =
 Initial release of Scan & Pay (n8n) payment gateway for WooCommerce.

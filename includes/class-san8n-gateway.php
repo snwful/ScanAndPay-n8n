@@ -242,8 +242,8 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
         $session_token = $this->generate_session_token();
         
         ?>
-        <div id="san8n-payment-fields" class="san8n-payment-container">
-            <div class="san8n-qr-section">
+        <fieldset id="san8n-payment-fields" class="san8n-payment-container wc-payment-form" style="background:transparent;">
+            <div class="san8n-qr-section form-row form-row-wide">
                 <h4><?php esc_html_e('Step 1: Scan PromptPay QR Code', 'scanandpay-n8n'); ?></h4>
                 <div class="san8n-qr-container">
                     <div class="san8n-qr-placeholder" data-payload="<?php echo esc_attr($qr_payload); ?>">
@@ -262,7 +262,7 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                 </div>
             </div>
 
-            <div class="san8n-upload-section">
+            <div class="san8n-upload-section form-row form-row-wide">
                 <h4><?php esc_html_e('Step 2: Upload Payment Slip', 'scanandpay-n8n'); ?></h4>
                 <div class="san8n-upload-container">
                     <input type="file" 
@@ -289,9 +289,9 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                 </div>
             </div>
 
-            <div class="san8n-verify-section">
-                <button type="button" 
-                        id="san8n-verify-button" 
+            <div class="san8n-verify-section form-row form-row-wide">
+                <button type="button"
+                        id="san8n-verify-button"
                         class="san8n-verify-button button alt"
                         disabled>
                     <?php esc_html_e('Verify Payment', 'scanandpay-n8n'); ?>
@@ -314,7 +314,7 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
             <?php if ($this->auto_place_order_classic): ?>
             <input type="hidden" id="san8n-auto-submit" value="1" data-delay="<?php echo esc_attr($this->prevent_double_submit_ms); ?>" />
             <?php endif; ?>
-        </div>
+        </fieldset>
         <?php
     }
 
