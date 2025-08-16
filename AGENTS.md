@@ -11,11 +11,13 @@ Rules and map for agents (Codex/Windsurf/Cursor) to work safely on this WooComme
 - assets/js/settings.js (admin UX)
 - readme.txt (Changelog)
 - context.md / instructions.md / evaluation.md / plan.md
+ - promptpay/promptpay.php (shortcode provider `[promptpayqr]`)
 
 ## Current Mission
-- Replace dynamic QR with static Media Library image
+- Render PromptPay QR via shortcode: `[promptpayqr amount="{cart_total_float}"]`
+- Use PromptPay ID from PromptPay plugin settings (do not pass `id` in shortcode)
 - Slip verify via n8n (mock ok); trust n8n decision
-- Remove dynamic-price logic & promptpay_payload
+- Remove custom QR payload logic (`generate_qr_payload`) and any `promptpay_payload` usage
 - Keep security: nonce, file type/size, strip EXIF, caps
 
 ## API (internal → n8n)
@@ -30,15 +32,20 @@ n8n → { status: approved|rejected, reference_id?, approved_amount?, reason? }
 - PHPCS clean; WP/WC compatibility intact
 
 ## Do / Don’t
-- ✅ Use wp_get_attachment_url(qr_image_id)
-- ✅ Localize data via wp_localize_script
-- ❌ No dynamic QR payload / cart_hash gating
+- ✅ Use `echo do_shortcode('[promptpayqr amount="…"]')` in `payment_fields()`
+- ✅ Localize needed data via `wp_localize_script` (e.g., numeric `order_total`)
+- ✅ Pass a plain float for amount (no currency symbol/locale formatting)
+- ❌ Don’t build custom QR payloads or store `promptpay_payload`
+- ❌ Don’t gate logic on cart_hash or re-approve resets for price changes (see roadmap)
 - ❌ Don’t add new deps without reason
 
 ## Definition of Done
-- Settings: media picker `qr_image_id` working
-- Checkout shows QR image; slip upload integrates mock
-- REST accepts new params, handles n8n response
-- Removed generate_qr_payload & related JS resets
+- Checkout renders PromptPay QR via shortcode with amount locked to cart total
+- No references to `generate_qr_payload` or `promptpay_payload`
+- REST accepts expected params and handles n8n mock response
 - Version bumped + readme.txt changelog updated
 - plan.md updated; evaluation.md checks pass
+
+## Roadmap
+- Medium term: Re-render QR on `update_checkout` via AJAX to fetch refreshed shortcode HTML so the locked amount always matches the latest total
+- Long term: Add WooCommerce Blocks support (separate integration path; React-based, not `payment_fields()`)
