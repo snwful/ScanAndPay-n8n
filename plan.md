@@ -11,6 +11,7 @@ Static QR (Media Library) + simplified slip verification via n8n (mock).
 - [ ] Remove dynamic-price/cart-hash resets
 - [ ] Bump version + add readme.txt changelog
 - [ ] Update docs: context.md, AGENTS.md, plan.md
+- [x] Improve small-screen responsive layout for payment UI
 
 ## Risks/Mitigations
 - Blocks vs Classic → ship Classic first; gate others

@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <ruleset name="Scan and Pay n8n">
-    <description>WordPress Coding Standards for Scan & Pay (n8n) plugin</description>
+    <description>WordPress Coding Standards for Scan &amp; Pay (n8n) plugin</description>
 
     <!-- Scan all PHP files in directory -->
     <file>.</file>
