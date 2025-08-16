@@ -1,0 +1,23 @@
+{
+  "name": "ScanAndPay-n8n Dev",
+  "image": "mcr.microsoft.com/devcontainers/php:8.2", 
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "20" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Codeium.codeium",                   // << ติดตั้ง Codeium อัตโนมัติ
+        "esbenp.prettier-vscode",            // จัด format อัตโนมัติ
+        "bmewburn.vscode-intelephense-client", // PHP IntelliSense
+        "dbaeumer.vscode-eslint"             // สำหรับ JS/TS
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "php.validate.executablePath": "/usr/local/bin/php",
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+      }
+    }
+  },
+  "postCreateCommand": "composer install || true && npm ci || true"
+}
