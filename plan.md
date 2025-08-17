@@ -1,4 +1,4 @@
-# plan.md — Sprint Plan (2025-08-14)
+# plan.md — Sprint Plan (2025-08-17)
 
 ## Goal
 Use PromptPay shortcode to render QR with locked amount (ID from PromptPay plugin settings). Simplify slip verification payload and remove custom QR payload logic. Classic checkout only in this iteration.
@@ -18,6 +18,7 @@ Use PromptPay shortcode to render QR with locked amount (ID from PromptPay plugi
 - PromptPay plugin inactive → show fallback SVG + admin notice; document dependency
 - Amount formatting → always cast to float; avoid localized strings
 - Blocks vs Classic → ship Classic first; blocks tracked in roadmap
+- If shortcode is missing, auto-bootstrap bundled `promptpay/promptpay.php` to register shortcode and enqueue assets; avoid double-enqueue when external plugin is active
 
 ## Acceptance Criteria
 - Checkout renders PromptPay QR via shortcode with amount locked to cart total

@@ -16,7 +16,11 @@ Checkout page:
 
 - Customers can upload a slip file (JPG/PNG) and see a preview. The verify button triggers a request containing order_id, order_total, session_token and the image file; no cart_hash or cart_total are sent.
 
-No JavaScript errors appear in the console; legacy logic specific to custom QR payloads is removed.
+- No JavaScript errors appear in the console; legacy logic specific to custom QR payloads is removed.
+
+- PromptPay assets load: `promptpay/css/main.css` and `promptpay/js/main.min.js` are enqueued on checkout when the shortcode is present (either from external plugin or bundled bootstrap). If absent, expect the fallback SVG only.
+
+- Classic vs Blocks: Classic shows a live QR. Blocks currently shows a placeholder image unless explicitly implemented to render a `.ppy-card` and initialize PromptPay JS.
 
 REST API:
 

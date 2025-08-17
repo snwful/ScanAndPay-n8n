@@ -2,6 +2,17 @@ Plugin Context and Rationale
 
 This document provides background on the existing Scan & Pay (n8n) payment gateway plugin and the rationale for the upcoming refactor. It is intended to give Codex full context before modifying the code.
 
+## Status (v1.1.0) — Current Architecture
+**QR Rendering**: Classic checkout renders `[promptpayqr amount="{float_cart_total}"]` inside `payment_fields()` in `includes/class-san8n-gateway.php`. If the shortcode is missing, we show a notice and fallback SVG at `assets/images/qr-placeholder.svg`.
+
+**PromptPay Dependency**: The PromptPay shortcode and its assets (CSS/JS) are provided by the bundled `promptpay/` plugin or an external PromptPay plugin. If the shortcode isn’t registered, `scanandpay-n8n.php` auto-bootstraps `promptpay/promptpay.php`.
+
+**Assets**: The PromptPay CSS/JS (`promptpay/css/main.css`, `promptpay/js/main.min.js`) must load on checkout to render the QR inside `.ppy-card`. If they don’t load, the QR won’t appear even without console errors.
+
+**Blocks vs Classic**: Blocks currently shows a static placeholder image (no live QR). Classic shows a live QR via shortcode. Enhancing Blocks to render a `.ppy-card` div and initialize PromptPay JS is on the roadmap.
+
+**Slip Verification**: Frontend JS sends only `order_id`, `order_total`, `session_token`, and `slip_image` to `/wp-json/wc-scanandpay/v1/verify-slip`. The REST endpoint forwards to n8n and trusts its decision (approved/rejected), updating the order accordingly.
+
 Existing Functionality
 
 The plugin registers a WooCommerce payment gateway that lets customers pay by scanning a PromptPay QR code and uploading their payment slip. Key behaviours include:
