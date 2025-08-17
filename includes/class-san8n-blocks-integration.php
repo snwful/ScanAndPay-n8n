@@ -68,9 +68,8 @@ final class SAN8N_Blocks_Integration extends AbstractPaymentMethodType {
                 'allow_blocks_autosubmit_experimental' => $this->get_setting('allow_blocks_autosubmit_experimental') === 'yes',
                 'show_express_only_when_approved' => $this->get_setting('show_express_only_when_approved', 'yes') === 'yes',
                 'prevent_double_submit_ms' => intval($this->get_setting('prevent_double_submit_ms', '1500')),
-                'promptpay_payload' => $this->get_setting('promptpay_payload'),
                 'max_file_size' => intval($this->get_setting('max_file_size', '5')) * 1024 * 1024,
-                'qr_placeholder' => SAN8N_PLUGIN_URL . 'assets/images/qr-placeholder.png'
+                'qr_placeholder' => SAN8N_PLUGIN_URL . 'assets/images/qr-placeholder.svg'
             ),
             'rest_url' => rest_url(SAN8N_REST_NAMESPACE),
             'nonce' => wp_create_nonce('san8n-verify'),

@@ -116,8 +116,8 @@ const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
         const formData = new FormData();
         formData.append('slip_image', slipFile);
         formData.append('session_token', Date.now().toString());
-        formData.append('cart_total', cartTotal);
-        formData.append('cart_hash', window.wc.wcBlocksData.getSetting('cartHash', ''));
+        formData.append('order_id', 0);
+        formData.append('order_total', cartTotal);
 
         try {
             const response = await fetch(settings.rest_url + '/verify-slip', {
