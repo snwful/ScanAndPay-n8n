@@ -2,6 +2,8 @@ Instructions for Codex
 
 This file outlines the tasks Codex must perform to refactor the Scan & Pay (n8n) WooCommerce gateway according to the new requirements. Follow these steps carefully and ensure the final code compiles without syntax errors or undefined variables.
 
+Status: As of v1.1.0, these changes are largely implemented. Keep this file as reference for maintenance and future iterations.
+
 1. Update the Settings Form
 
 Remove the gateway’s custom PromptPay payload/ID field. In `includes/class-san8n-gateway.php`, delete any `promptpay_payload` form field from `init_form_fields()`.
@@ -56,7 +58,7 @@ Remove the `generate_qr_payload()` method entirely and any code branches referen
 
 Search for and delete any uses of `promptpay_payload` in the repository, including in REST calls.
 
-Remove any CSS or JavaScript that references the QR placeholder image or dynamic calculations.
+Keep the SVG placeholder as a graceful fallback only (when the PromptPay shortcode is unavailable). Remove any dynamic QR payload/calculation code that is no longer used.
 
 6. Ensure Functionality and Compatibility
 

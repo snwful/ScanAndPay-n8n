@@ -10,90 +10,12 @@ if (!defined('ABSPATH')) {
 class SAN8N_Helper {
     
     /**
-     * Generate QR code payload for PromptPay
-     * @param float $amount
-     * @return string
-     */
-    public static function generate_qr_payload($amount) {
-        $settings = get_option(SAN8N_OPTIONS_KEY, array());
-        $promptpay_id = isset($settings['promptpay_payload']) ? $settings['promptpay_payload'] : '';
-        
-        // Placeholder implementation for v1 - EMVCo format will be in v2
-        return base64_encode(json_encode(array(
-            'type' => 'promptpay',
-            'id' => $promptpay_id,
-            'amount' => $amount,
-            'currency' => 'THB',
-            'timestamp' => time()
-        )));
-    }
-
-    /**
-     * Validate PromptPay ID format
-     * @param string $id
-     * @return bool
-     */
-    public static function validate_promptpay_id($id) {
-        // Remove spaces and dashes
-        $id = preg_replace('/[\s-]/', '', $id);
-        
-        // Check if it's a phone number (10 digits starting with 0)
-        if (preg_match('/^0[0-9]{9}$/', $id)) {
-            return true;
-        }
-        
-        // Check if it's a national ID (13 digits)
-        if (preg_match('/^[0-9]{13}$/', $id)) {
-            return true;
-        }
-        
-        // Check if it's a tax ID (13 digits)
-        if (preg_match('/^[0-9]{13}$/', $id)) {
-            return true;
-        }
-        
-        // Check if it's an e-wallet ID
-        if (preg_match('/^[0-9]{15}$/', $id)) {
-            return true;
-        }
-        
-        return false;
-    }
-
-    /**
      * Format amount for display
      * @param float $amount
      * @return string
      */
     public static function format_amount($amount) {
         return number_format($amount, 2, '.', ',');
-    }
-
-    /**
-     * Check if cart has changed
-     * @param string $stored_hash
-     * @return bool
-     */
-    public static function has_cart_changed($stored_hash) {
-        if (!WC()->cart) {
-            return true;
-        }
-        
-        $current_hash = WC()->cart->get_cart_hash();
-        return $stored_hash !== $current_hash;
-    }
-
-    /**
-     * Clear session data
-     */
-    public static function clear_session_data() {
-        if (WC()->session) {
-            WC()->session->set(SAN8N_SESSION_FLAG, false);
-            WC()->session->set('san8n_attachment_id', null);
-            WC()->session->set('san8n_approved_amount', null);
-            WC()->session->set('san8n_cart_hash', null);
-            WC()->session->set('san8n_reference_id', null);
-        }
     }
 
     /**
@@ -111,20 +33,6 @@ class SAN8N_Helper {
         
         $orders = wc_get_orders($args);
         return !empty($orders) ? $orders[0] : false;
-    }
-
-    /**
-     * Check if payment is within time window
-     * @param string $timestamp
-     * @param int $window_minutes
-     * @return bool
-     */
-    public static function is_within_time_window($timestamp, $window_minutes = 15) {
-        $payment_time = is_numeric($timestamp) ? $timestamp : strtotime($timestamp);
-        $current_time = current_time('timestamp');
-        $diff_minutes = abs($current_time - $payment_time) / 60;
-        
-        return $diff_minutes <= $window_minutes;
     }
 
     /**

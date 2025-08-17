@@ -7,11 +7,12 @@ Rules and map for agents (Codex/Windsurf/Cursor) to work safely on this WooComme
 - scanandpay-n8n.php (bootstrap, SAN8N_VERSION)
 - includes/class-san8n-gateway.php (settings, checkout UI)
 - includes/class-san8n-rest-api.php (POST /verify-slip)
+- includes/class-san8n-blocks-integration.php (Blocks checkout integration)
 - assets/js/checkout-inline.js (classic checkout)
-- assets/js/settings.js (admin UX)
+- assets/js/admin.js (admin UX)
 - readme.txt (Changelog)
 - context.md / instructions.md / evaluation.md / plan.md
- - promptpay/promptpay.php (shortcode provider `[promptpayqr]`)
+- promptpay/ (bundled PromptPay shortcode provider; auto-bootstrapped if shortcode missing)
 
 ## Current Mission
 - Render PromptPay QR via shortcode: `[promptpayqr amount="{cart_total_float}"]`
@@ -19,6 +20,8 @@ Rules and map for agents (Codex/Windsurf/Cursor) to work safely on this WooComme
 - Slip verify via n8n (mock ok); trust n8n decision
 - Remove custom QR payload logic (`generate_qr_payload`) and any `promptpay_payload` usage
 - Keep security: nonce, file type/size, strip EXIF, caps
+- Classic checkout: renders live QR via shortcode in `payment_fields()` with fallback SVG if shortcode missing
+- Blocks checkout: currently shows a static placeholder image; optional enhancement is to render a `.ppy-card` with PromptPay JS
 
 ## API (internal → n8n)
 POST /wp-json/wc-scanandpay/v1/verify-slip  (multipart)
@@ -32,12 +35,12 @@ n8n → { status: approved|rejected, reference_id?, approved_amount?, reason? }
 - PHPCS clean; WP/WC compatibility intact
 
 ## Do / Don’t
-- ✅ Use `echo do_shortcode('[promptpayqr amount="…"]')` in `payment_fields()`
-- ✅ Localize needed data via `wp_localize_script` (e.g., numeric `order_total`)
-- ✅ Pass a plain float for amount (no currency symbol/locale formatting)
-- ❌ Don’t build custom QR payloads or store `promptpay_payload`
-- ❌ Don’t gate logic on cart_hash or re-approve resets for price changes (see roadmap)
-- ❌ Don’t add new deps without reason
+- Use `echo do_shortcode('[promptpayqr amount="…"]')` in `payment_fields()`
+- Localize needed data via `wp_localize_script` (e.g., numeric `order_total`)
+- Pass a plain float for amount (no currency symbol/locale formatting)
+- Don’t build custom QR payloads or store `promptpay_payload`
+- Don’t gate logic on cart_hash or re-approve resets for price changes (see roadmap)
+- Don’t add new deps without reason
 
 ## Definition of Done
 - Checkout renders PromptPay QR via shortcode with amount locked to cart total
@@ -48,4 +51,5 @@ n8n → { status: approved|rejected, reference_id?, approved_amount?, reason? }
 
 ## Roadmap
 - Medium term: Re-render QR on `update_checkout` via AJAX to fetch refreshed shortcode HTML so the locked amount always matches the latest total
+- Short/medium: Improve Blocks integration to render live QR (initialize `.ppy-card` using PromptPay JS); today it's a placeholder
 - Long term: Add WooCommerce Blocks support (separate integration path; React-based, not `payment_fields()`)

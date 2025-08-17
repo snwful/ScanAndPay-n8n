@@ -18,9 +18,6 @@
             // Mode change handlers
             $(document).on('change', '#woocommerce_scanandpay_n8n_blocks_mode', this.handleBlocksModeChange);
             
-            // Validate PromptPay ID on blur
-            $(document).on('blur', '#woocommerce_scanandpay_n8n_promptpay_payload', this.validatePromptPayId);
-            
             // Show/hide advanced settings
             $(document).on('click', '.san8n-toggle-advanced', this.toggleAdvancedSettings);
         },
@@ -116,48 +113,6 @@
             }
         },
 
-        validatePromptPayId: function() {
-            const $input = $(this);
-            const value = $input.val().replace(/[\s-]/g, '');
-            const $feedback = $input.siblings('.san8n-validation-feedback');
-            
-            if (!value) {
-                $feedback.remove();
-                return;
-            }
-            
-            let isValid = false;
-            let message = '';
-            
-            // Check phone number (10 digits starting with 0)
-            if (/^0[0-9]{9}$/.test(value)) {
-                isValid = true;
-                message = 'Valid phone number format';
-            }
-            // Check national ID or tax ID (13 digits)
-            else if (/^[0-9]{13}$/.test(value)) {
-                isValid = true;
-                message = 'Valid ID format';
-            }
-            // Check e-wallet ID (15 digits)
-            else if (/^[0-9]{15}$/.test(value)) {
-                isValid = true;
-                message = 'Valid e-wallet format';
-            }
-            else {
-                message = 'Invalid format. Use phone (0xxxxxxxxx), ID (13 digits), or e-wallet (15 digits)';
-            }
-            
-            // Remove existing feedback
-            $feedback.remove();
-            
-            // Add new feedback
-            const feedbackHtml = '<span class="san8n-validation-feedback ' + 
-                                (isValid ? 'valid' : 'invalid') + '">' + 
-                                message + '</span>';
-            $input.after(feedbackHtml);
-        },
-
         toggleAdvancedSettings: function(e) {
             e.preventDefault();
             
@@ -186,13 +141,8 @@
                              '<div id="san8n-test-result" class="san8n-test-result" style="display:none;"></div>';
             $('#woocommerce_scanandpay_n8n_webhook_url').after(testButton);
             
-            // Add validation feedback container
-            $('#woocommerce_scanandpay_n8n_promptpay_payload').after('<span class="san8n-validation-feedback"></span>');
-            
             // Group advanced settings
             const advancedFields = [
-                'amount_tolerance',
-                'payment_time_window',
                 'retention_days',
                 'prevent_double_submit_ms',
                 'logging_enabled'

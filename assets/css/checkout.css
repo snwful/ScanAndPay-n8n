@@ -214,7 +214,6 @@
 /* Hidden fields */
 #san8n-approval-status,
 #san8n-reference-id,
-#san8n-approved-amount,
 #san8n-session-token {
     display: none;
 }
