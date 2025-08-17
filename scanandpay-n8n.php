@@ -3,7 +3,7 @@
  * Plugin Name: Scan & Pay (n8n)
  * Plugin URI: https://github.com/your-org/scanandpay-n8n
  * Description: PromptPay payment gateway with inline slip verification via n8n
- * Version: 1.1.0
+ * Version: 1.1.1
  * Author: Your Company
  * Author URI: https://yourcompany.com
  * Text Domain: scanandpay-n8n
@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('SAN8N_VERSION', '1.1.0');
+define('SAN8N_VERSION', '1.1.1');
 define('SAN8N_PLUGIN_FILE', __FILE__);
 define('SAN8N_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SAN8N_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -33,8 +33,17 @@ define('SAN8N_SESSION_FLAG', 'san8n_approved');
 define('SAN8N_LOGGER_SOURCE', 'scanandpay-n8n');
 define('SAN8N_CAPABILITY', 'san8n_manage');
 
+// Bootstrap PromptPay shortcode if missing
+add_action('plugins_loaded', 'san8n_bootstrap_promptpay', 5);
+
 // Bootstrap plugin
 add_action('plugins_loaded', 'san8n_init_gateway', 11);
+
+function san8n_bootstrap_promptpay() {
+    if (!shortcode_exists('promptpayqr') && !class_exists('PromptPay')) {
+        include_once SAN8N_PLUGIN_DIR . 'promptpay/promptpay.php';
+    }
+}
 
 function san8n_init_gateway() {
     // Check if WooCommerce is active

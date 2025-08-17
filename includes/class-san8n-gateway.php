@@ -313,6 +313,21 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
         );
         wp_enqueue_style('san8n-checkout');
 
+        // Ensure PromptPay assets when shortcode is available
+        if (shortcode_exists('promptpayqr')) {
+            if (!wp_style_is('ppy-main-style', 'enqueued') && !wp_style_is('ppy-main-style', 'registered')) {
+                wp_enqueue_style('ppy-main-style', SAN8N_PLUGIN_URL . 'promptpay/css/main.css', array(), SAN8N_VERSION);
+            } else {
+                wp_enqueue_style('ppy-main-style');
+            }
+
+            if (!wp_script_is('ppy-main-script', 'enqueued') && !wp_script_is('ppy-main-script', 'registered')) {
+                wp_enqueue_script('ppy-main-script', SAN8N_PLUGIN_URL . 'promptpay/js/main.min.js', array('jquery'), SAN8N_VERSION, true);
+            } else {
+                wp_enqueue_script('ppy-main-script');
+            }
+        }
+
         // Register and enqueue scripts
         wp_register_script(
             'san8n-checkout-inline',

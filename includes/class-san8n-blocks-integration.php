@@ -53,6 +53,21 @@ final class SAN8N_Blocks_Integration extends AbstractPaymentMethodType {
             SAN8N_VERSION
         );
 
+        // Optionally load PromptPay assets for live QR in Blocks
+        if (apply_filters('san8n_blocks_live_qr', false) && shortcode_exists('promptpayqr')) {
+            if (!wp_style_is('ppy-main-style', 'enqueued') && !wp_style_is('ppy-main-style', 'registered')) {
+                wp_enqueue_style('ppy-main-style', SAN8N_PLUGIN_URL . 'promptpay/css/main.css', array(), SAN8N_VERSION);
+            } else {
+                wp_enqueue_style('ppy-main-style');
+            }
+
+            if (!wp_script_is('ppy-main-script', 'enqueued') && !wp_script_is('ppy-main-script', 'registered')) {
+                wp_enqueue_script('ppy-main-script', SAN8N_PLUGIN_URL . 'promptpay/js/main.min.js', array('jquery'), SAN8N_VERSION, true);
+            } else {
+                wp_enqueue_script('ppy-main-script');
+            }
+        }
+
         return array('san8n-blocks-integration');
     }
 
@@ -69,7 +84,8 @@ final class SAN8N_Blocks_Integration extends AbstractPaymentMethodType {
                 'show_express_only_when_approved' => $this->get_setting('show_express_only_when_approved', 'yes') === 'yes',
                 'prevent_double_submit_ms' => intval($this->get_setting('prevent_double_submit_ms', '1500')),
                 'max_file_size' => intval($this->get_setting('max_file_size', '5')) * 1024 * 1024,
-                'qr_placeholder' => SAN8N_PLUGIN_URL . 'assets/images/qr-placeholder.svg'
+                'qr_placeholder' => SAN8N_PLUGIN_URL . 'assets/images/qr-placeholder.svg',
+                'live_qr' => apply_filters('san8n_blocks_live_qr', false)
             ),
             'rest_url' => rest_url(SAN8N_REST_NAMESPACE),
             'nonce' => wp_create_nonce('san8n-verify'),
