@@ -12,14 +12,7 @@ const settings = getSetting('scanandpay_n8n_data', {});
 const label = decodeEntities(settings.title) || __('Scan & Pay (n8n)', 'scanandpay-n8n');
 const description = decodeEntities(settings.description || '');
 
-// Initialize PromptPay JS when live QR is enabled
-if (settings.settings && settings.settings.live_qr) {
-    document.addEventListener('DOMContentLoaded', () => {
-        if (window.PromptPay && typeof window.PromptPay.init === 'function') {
-            window.PromptPay.init();
-        }
-    });
-}
+// Live PromptPay QR is no longer used. Always render a static image from settings.
 
 const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
     const { onPaymentSetup, onCheckoutValidation } = eventRegistration;
@@ -36,9 +29,7 @@ const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
     const cartTotal = window.wc.wcBlocksData.getSetting('cartTotals', {}).total_price / 100;
 
     useEffect(() => {
-        if (settings.settings && settings.settings.live_qr && window.PromptPay && typeof window.PromptPay.init === 'function') {
-            window.PromptPay.init();
-        }
+        // No-op: live QR removed
     }, [cartTotal]);
 
     useEffect(() => {
@@ -201,18 +192,11 @@ const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
             <div className="san8n-qr-section">
                 <h4>{settings.i18n.scan_qr}</h4>
                 <div className="san8n-qr-container">
-                    {settings.settings.live_qr ? (
-                        <div
-                            className="ppy-card"
-                            data-amount={cartTotal.toFixed(2)}
-                        ></div>
-                    ) : (
-                        <img
-                            src={settings.settings.qr_placeholder}
-                            alt="PromptPay QR Code"
-                            className="san8n-qr-placeholder"
-                        />
-                    )}
+                    <img
+                        src={settings.settings.qr_placeholder}
+                        alt="QR Code"
+                        className="san8n-qr-placeholder"
+                    />
                     <div className="san8n-amount-display">
                         {settings.i18n.amount_label.replace('%s', cartTotal.toFixed(2))}
                     </div>

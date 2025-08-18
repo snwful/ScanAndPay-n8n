@@ -36,6 +36,7 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
     private $allowed_file_types;
     private $retention_days;
     private $log_level;
+    private $qr_image_url;
 
     public function __construct() {
         $this->id = SAN8N_GATEWAY_ID;
@@ -64,6 +65,7 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
         $this->allowed_file_types = array('jpg', 'jpeg', 'png');
         $this->retention_days = intval($this->get_option('retention_days', '30'));
         $this->log_level = $this->get_option('log_level', 'info');
+        $this->qr_image_url = $this->get_option('qr_image_url', '');
 
         // Initialize logger
         $this->logger = new SAN8N_Logger();
@@ -112,6 +114,13 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                 'description' => $this->tr('Shared secret for HMAC signature verification.'),
                 'desc_tip' => true,
                 'custom_attributes' => array('required' => 'required')
+            ),
+            'qr_image_url' => array(
+                'title' => $this->tr('QR Image'),
+                'type' => 'text',
+                'description' => $this->tr('Select a static image (via Media Library) to display instead of a PromptPay QR code. Leave empty to use the default placeholder.'),
+                'default' => '',
+                'desc_tip' => true,
             ),
             'classic_settings' => array(
                 'title' => $this->tr('Classic Checkout Settings'),
@@ -257,25 +266,16 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
         ?>
         <fieldset id="san8n-payment-fields" class="san8n-payment-container wc-payment-form" style="background:transparent;">
             <div class="san8n-qr-section form-row form-row-wide">
-                <h4><?php echo (is_callable('esc_html') ? call_user_func('esc_html', (is_callable('__') ? call_user_func('__', 'Step 1: Scan PromptPay QR Code', 'scanandpay-n8n') : 'Step 1: Scan PromptPay QR Code')) : 'Step 1: Scan PromptPay QR Code'); ?></h4>
+                <h4><?php echo (is_callable('esc_html') ? call_user_func('esc_html', (is_callable('__') ? call_user_func('__', 'Step 1: Scan QR Code', 'scanandpay-n8n') : 'Step 1: Scan QR Code')) : 'Step 1: Scan QR Code'); ?></h4>
                 <div class="san8n-qr-container">
                     <div class="san8n-qr-placeholder">
                         <?php
-                        $amount = (float) $order_total;
-                        if (is_callable('shortcode_exists') && call_user_func('shortcode_exists', 'promptpayqr')) {
-                            $amount_attr = is_callable('esc_attr') ? call_user_func('esc_attr', $amount) : htmlspecialchars((string) $amount, ENT_QUOTES, 'UTF-8');
-                            $shortcode = sprintf('[promptpayqr amount="%s"]', $amount_attr);
-                            echo is_callable('do_shortcode') ? call_user_func('do_shortcode', $shortcode) : $shortcode;
-                        } else {
-                            $p_text = is_callable('__') ? call_user_func('__', 'PromptPay plugin not active. Using placeholder QR.', 'scanandpay-n8n') : 'PromptPay plugin not active. Using placeholder QR.';
-                            $p_text = is_callable('esc_html') ? call_user_func('esc_html', $p_text) : htmlspecialchars($p_text, ENT_QUOTES, 'UTF-8');
-                            $img_src = SAN8N_PLUGIN_URL . 'assets/images/qr-placeholder.svg';
-                            $img_src_attr = is_callable('esc_url') ? call_user_func('esc_url', $img_src) : $img_src;
-                            $alt_src = is_callable('__') ? call_user_func('__', 'PromptPay QR placeholder', 'scanandpay-n8n') : 'PromptPay QR placeholder';
-                            $alt_attr = is_callable('esc_attr') ? call_user_func('esc_attr', $alt_src) : htmlspecialchars($alt_src, ENT_QUOTES, 'UTF-8');
-                            echo '<p>' . $p_text . '</p>';
-                            echo '<img src="' . $img_src_attr . '" alt="' . $alt_attr . '" />';
-                        }
+                        $custom_img = (string) $this->qr_image_url;
+                        $img_src = !empty($custom_img) ? $custom_img : (SAN8N_PLUGIN_URL . 'assets/images/qr-placeholder.svg');
+                        $img_src_attr = is_callable('esc_url') ? call_user_func('esc_url', $img_src) : $img_src;
+                        $alt_src = is_callable('__') ? call_user_func('__', 'QR code image', 'scanandpay-n8n') : 'QR code image';
+                        $alt_attr = is_callable('esc_attr') ? call_user_func('esc_attr', $alt_src) : htmlspecialchars($alt_src, ENT_QUOTES, 'UTF-8');
+                        echo '<img src="' . $img_src_attr . '" alt="' . $alt_attr . '" class="san8n-qr-placeholder" />';
                         ?>
                     </div>
                     <div class="san8n-amount-display">
@@ -372,20 +372,7 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
             call_user_func('wp_enqueue_style', 'san8n-checkout');
         }
 
-        // Ensure PromptPay assets when shortcode is available (only if registered by PromptPay plugin)
-        if (is_callable('shortcode_exists') && call_user_func('shortcode_exists', 'promptpayqr')) {
-            if (is_callable('wp_style_is') && is_callable('wp_enqueue_style')) {
-                if (call_user_func('wp_style_is', 'ppy-main-style', 'enqueued') || call_user_func('wp_style_is', 'ppy-main-style', 'registered')) {
-                    call_user_func('wp_enqueue_style', 'ppy-main-style');
-                }
-            }
-
-            if (is_callable('wp_script_is') && is_callable('wp_enqueue_script')) {
-                if (call_user_func('wp_script_is', 'ppy-main-script', 'enqueued') || call_user_func('wp_script_is', 'ppy-main-script', 'registered')) {
-                    call_user_func('wp_enqueue_script', 'ppy-main-script');
-                }
-            }
-        }
+        // No PromptPay assets are enqueued; QR is a static image selected in settings.
 
         // Register and enqueue scripts
         if (is_callable('wp_register_script')) {

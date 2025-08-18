@@ -309,6 +309,11 @@ class SAN8N_Admin {
 
         // Settings page
         if ($hook === 'woocommerce_page_wc-settings') {
+            // Ensure Media Library is available for media picker fields
+            if (is_callable('wp_enqueue_media')) {
+                call_user_func('wp_enqueue_media');
+            }
+
             if (is_callable('wp_enqueue_script')) {
                 call_user_func(
                     'wp_enqueue_script',

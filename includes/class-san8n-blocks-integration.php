@@ -90,21 +90,7 @@ final class SAN8N_Blocks_Integration extends SAN8N_AbstractPaymentMethodType_Run
             );
         }
 
-        // Optionally load PromptPay assets for live QR in Blocks
-        $live_qr = is_callable('apply_filters') ? call_user_func('apply_filters', 'san8n_blocks_live_qr', false) : false;
-        if ($live_qr && is_callable('shortcode_exists') && call_user_func('shortcode_exists', 'promptpayqr')) {
-            if (is_callable('wp_style_is') && is_callable('wp_enqueue_style')) {
-                if (call_user_func('wp_style_is', 'ppy-main-style', 'enqueued') || call_user_func('wp_style_is', 'ppy-main-style', 'registered')) {
-                    call_user_func('wp_enqueue_style', 'ppy-main-style');
-                }
-            }
-
-            if (is_callable('wp_script_is') && is_callable('wp_enqueue_script')) {
-                if (call_user_func('wp_script_is', 'ppy-main-script', 'enqueued') || call_user_func('wp_script_is', 'ppy-main-script', 'registered')) {
-                    call_user_func('wp_enqueue_script', 'ppy-main-script');
-                }
-            }
-        }
+        // No PromptPay assets are enqueued. QR is a static image configured in settings.
 
         return array('san8n-blocks-integration');
     }
@@ -126,6 +112,9 @@ final class SAN8N_Blocks_Integration extends SAN8N_AbstractPaymentMethodType_Run
             $supports = array_values(array_filter($gateway->supports, array($gateway, 'supports')));
         }
 
+        $qr_custom = $this->get_setting('qr_image_url', '');
+        $qr_url = !empty($qr_custom) ? $qr_custom : (SAN8N_PLUGIN_URL . 'assets/images/qr-placeholder.svg');
+
         return array(
             'title' => $title,
             'description' => $description,
@@ -136,14 +125,13 @@ final class SAN8N_Blocks_Integration extends SAN8N_AbstractPaymentMethodType_Run
                 'show_express_only_when_approved' => $this->get_setting('show_express_only_when_approved', 'yes') === 'yes',
                 'prevent_double_submit_ms' => intval($this->get_setting('prevent_double_submit_ms', '1500')),
                 'max_file_size' => intval($this->get_setting('max_file_size', '5')) * 1024 * 1024,
-                'qr_placeholder' => SAN8N_PLUGIN_URL . 'assets/images/qr-placeholder.svg',
-                'live_qr' => (is_callable('apply_filters') ? call_user_func('apply_filters', 'san8n_blocks_live_qr', false) : false)
+                'qr_placeholder' => $qr_url
             ),
             'rest_url' => is_callable('rest_url') ? call_user_func('rest_url', SAN8N_REST_NAMESPACE) : '',
             'nonce' => is_callable('wp_create_nonce') ? call_user_func('wp_create_nonce', 'san8n-verify') : '',
             'gateway_id' => $this->name,
             'i18n' => array(
-                'scan_qr' => $this->tr('Step 1: Scan PromptPay QR Code'),
+                'scan_qr' => $this->tr('Step 1: Scan QR Code'),
                 'upload_slip' => $this->tr('Step 2: Upload Payment Slip'),
                 'verify_payment' => $this->tr('Verify Payment'),
                 'pay_now' => $this->tr('Pay now'),

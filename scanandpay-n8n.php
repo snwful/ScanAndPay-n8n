@@ -36,17 +36,9 @@ define('SAN8N_SESSION_FLAG', 'san8n_approved');
 define('SAN8N_LOGGER_SOURCE', 'scanandpay-n8n');
 define('SAN8N_CAPABILITY', 'san8n_manage');
 
-// Bootstrap PromptPay shortcode if missing and initialize plugin (guarded for IDEs)
+// Initialize plugin (guarded for IDEs)
 if (is_callable('add_action')) {
-    call_user_func('add_action', 'plugins_loaded', 'san8n_bootstrap_promptpay', 5);
     call_user_func('add_action', 'plugins_loaded', 'san8n_init_gateway', 11);
-}
-
-function san8n_bootstrap_promptpay() {
-    $has_shortcode = is_callable('shortcode_exists') ? call_user_func('shortcode_exists', 'promptpayqr') : false;
-    if (!$has_shortcode && !class_exists('PromptPay')) {
-        include_once SAN8N_PLUGIN_DIR . 'promptpay/promptpay.php';
-    }
 }
 
 function san8n_init_gateway() {

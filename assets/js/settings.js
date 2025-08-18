@@ -9,6 +9,7 @@
         init: function() {
             this.bindEvents();
             this.initTooltips();
+            this.initMediaPicker();
         },
 
         bindEvents: function() {
@@ -20,6 +21,15 @@
             
             // Show/hide advanced settings
             $(document).on('click', '.san8n-toggle-advanced', this.toggleAdvancedSettings);
+
+            // Media picker actions
+            $(document).on('click', '#san8n-qr-select', this.openMediaFrame);
+            $(document).on('click', '#san8n-qr-clear', function(e) {
+                e.preventDefault();
+                const $input = $('#woocommerce_scanandpay_n8n_qr_image_url');
+                $input.val('').trigger('change');
+            });
+            $(document).on('change blur', '#woocommerce_scanandpay_n8n_qr_image_url', this.refreshQrPreview);
         },
 
         initTooltips: function() {
@@ -127,6 +137,70 @@
                 $advanced.slideDown();
                 $toggle.text('Hide Advanced Settings ▲');
             }
+        },
+
+        // Initialize media picker UI for the QR image field
+        initMediaPicker: function() {
+            // Only if field exists (gateway settings page)
+            const $field = $('#woocommerce_scanandpay_n8n_qr_image_url');
+            if (!$field.length) return;
+
+            // Inject UI once
+            if (!$field.data('san8n-ui')) {
+                this.renderQrFieldUI($field);
+                $field.data('san8n-ui', true);
+            }
+
+            // Initial preview state
+            this.refreshQrPreview();
+        },
+
+        // Render UI controls next to the input field
+        renderQrFieldUI: function($field) {
+            const html = [
+                '<div class="san8n-qr-media">',
+                '  <div class="san8n-qr-actions">',
+                '    <button type="button" id="san8n-qr-select" class="button">Select image</button>',
+                '    <button type="button" id="san8n-qr-clear" class="button">Clear</button>',
+                '  </div>',
+                '  <img class="san8n-qr-preview" alt="QR preview" style="display:none;" />',
+                '</div>'
+            ].join('');
+            $field.after(html);
+        },
+
+        // Open WP media frame and set URL on select
+        openMediaFrame: function(e) {
+            e.preventDefault();
+            // Reuse single frame instance
+            if (!window.san8nQrFrame) {
+                window.san8nQrFrame = wp.media({
+                    title: 'Select QR image',
+                    button: { text: 'Use this image' },
+                    library: { type: 'image' },
+                    multiple: false
+                });
+
+                window.san8nQrFrame.on('select', function() {
+                    const attachment = window.san8nQrFrame.state().get('selection').first().toJSON();
+                    const url = attachment && (attachment.sizes && attachment.sizes.medium ? attachment.sizes.medium.url : attachment.url);
+                    const $input = $('#woocommerce_scanandpay_n8n_qr_image_url');
+                    $input.val(url).trigger('change');
+                });
+            }
+            window.san8nQrFrame.open();
+        },
+
+        // Update preview image visibility/src based on field value
+        refreshQrPreview: function() {
+            const $input = $('#woocommerce_scanandpay_n8n_qr_image_url');
+            const $img = $input.siblings('.san8n-qr-media').find('.san8n-qr-preview');
+            const url = ($input.val() || '').trim();
+            if (url) {
+                $img.attr('src', url).show();
+            } else {
+                $img.attr('src', '').hide();
+            }
         }
     };
 
@@ -200,6 +274,11 @@
             .san8n-toggle-advanced:hover {
                 text-decoration: underline;
             }
+            /* Media picker UI */
+            .san8n-qr-media { margin-top: 6px; }
+            .san8n-qr-actions { margin-top: 6px; }
+            .san8n-qr-actions .button + .button { margin-left: 8px; }
+            .san8n-qr-preview { display:block; max-width:160px; height:auto; margin-top:8px; border:1px solid #ddd; border-radius:3px; }
         </style>
     `;
     
