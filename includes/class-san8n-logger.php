@@ -15,16 +15,23 @@ class SAN8N_Logger {
 
     public function __construct($correlation_id = null) {
         $this->source = SAN8N_LOGGER_SOURCE;
-        $this->logger = wc_get_logger();
+        $this->logger = is_callable('wc_get_logger')
+            ? call_user_func('wc_get_logger')
+            : new class {
+                public function log($level, $message, $context = array()) {
+                    // no-op fallback logger
+                }
+            };
         
-        $settings = get_option(SAN8N_OPTIONS_KEY, array());
+        $settings = is_callable('get_option') ? call_user_func('get_option', SAN8N_OPTIONS_KEY, array()) : array();
         $this->log_level = isset($settings['log_level']) ? $settings['log_level'] : 'info';
         
         $this->correlation_id = $correlation_id ?: $this->generate_correlation_id();
     }
 
     private function generate_correlation_id() {
-        return 'san8n_' . wp_generate_uuid4();
+        $uuid = is_callable('wp_generate_uuid4') ? call_user_func('wp_generate_uuid4') : uniqid('', true);
+        return 'san8n_' . $uuid;
     }
 
     public function get_correlation_id() {
@@ -78,7 +85,8 @@ class SAN8N_Logger {
         $formatted = sprintf('[%s] %s', $this->correlation_id, $message);
         
         if (!empty($context)) {
-            $formatted .= ' | Context: ' . wp_json_encode($context);
+            $json = is_callable('wp_json_encode') ? call_user_func('wp_json_encode', $context) : json_encode($context);
+            $formatted .= ' | Context: ' . $json;
         }
 
         return $this->mask_pii($formatted);

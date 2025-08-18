@@ -21,7 +21,7 @@ Rules and map for agents (Codex/Windsurf/Cursor) to work safely on this WooComme
 - Remove custom QR payload logic (`generate_qr_payload`) and any `promptpay_payload` usage
 - Keep security: nonce, file type/size, strip EXIF, caps
 - Classic checkout: renders live QR via shortcode in `payment_fields()` with fallback SVG if shortcode missing
-- Blocks checkout: currently shows a static placeholder image; optional enhancement is to render a `.ppy-card` with PromptPay JS
+- Blocks checkout: placeholder by default; live QR can be enabled via `san8n_blocks_live_qr` filter which renders a `.ppy-card` initialized by PromptPay JS
 
 ## API (internal → n8n)
 POST /wp-json/wc-scanandpay/v1/verify-slip  (multipart)
@@ -51,5 +51,5 @@ n8n → { status: approved|rejected, reference_id?, approved_amount?, reason? }
 
 ## Roadmap
 - Medium term: Re-render QR on `update_checkout` via AJAX to fetch refreshed shortcode HTML so the locked amount always matches the latest total
-- Short/medium: Improve Blocks integration to render live QR (initialize `.ppy-card` using PromptPay JS); today it's a placeholder
+- Short/medium: Improve Blocks integration to render live QR by default; currently gated via `san8n_blocks_live_qr` filter
 - Long term: Add WooCommerce Blocks support (separate integration path; React-based, not `payment_fields()`)

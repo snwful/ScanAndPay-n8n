@@ -4,7 +4,7 @@ Tags: woocommerce, payment gateway, promptpay, qr code, thailand
 Requires at least: 6.0
 Tested up to: 6.4
 Requires PHP: 8.0
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -182,6 +182,11 @@ Configurable retention period (default 30 days) with automatic cleanup.
 Yes, administrators can manually approve or reject payments from the order edit page.
 
 == Changelog ==
+
+= 1.1.1 - 2025-08-25 =
+* Ensure PromptPay shortcode and assets load on checkout
+* Fallback SVG shown when PromptPay plugin inactive
+* Optional filter to enable live QR in Blocks checkout
 
 = 1.1.0 - 2025-08-21 =
 * Use PromptPay shortcode for QR (amount-only)
