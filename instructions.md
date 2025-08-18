@@ -2,35 +2,25 @@ Instructions for Codex
 
 This file outlines the tasks Codex must perform to refactor the Scan & Pay (n8n) WooCommerce gateway according to the new requirements. Follow these steps carefully and ensure the final code compiles without syntax errors or undefined variables.
 
-Status: As of v1.1.0, these changes are largely implemented. Keep this file as reference for maintenance and future iterations.
+Status: As of v1.1.1, the gateway uses a static QR placeholder image configured via the WordPress Media Library and displays it in both Classic and Blocks checkout. Slip verification posts to `/wp-json/wc-scanandpay/v1/verify-slip` and forwards to a backend verifier (n8n currently supported; Laravel under consideration). Keep this file as a maintenance guide.
 
-1. Update the Settings Form
+1. Settings: Media Library Picker
 
-Remove the gateway’s custom PromptPay payload/ID field. In `includes/class-san8n-gateway.php`, delete any `promptpay_payload` form field from `init_form_fields()`.
+Add/maintain a Media Library field for the QR placeholder image in `includes/class-san8n-gateway.php` (`init_form_fields()`), stored as `qr_image_url`.
 
-Do not add a media field. We will not use a static image. The PromptPay ID will come from the PromptPay plugin’s settings.
+Show a live preview on the settings screen (see `assets/js/settings.js`). Persist the value and ensure proper sanitization/escaping.
 
-Remove unnecessary settings tied to dynamic price logic. If present, remove/hide items such as amount tolerance and time-window specific to price resets. Keep operational settings (webhook URL, shared secret, size limits, messages).
+Keep operational settings (webhook URL, shared secret, limits/messages). Remove any legacy options related to dynamic QR generation.
 
-Bump the plugin version and changelog. Increment `SAN8N_VERSION` and the plugin header version. Add a readme.txt changelog entry describing: “Use PromptPay shortcode for QR, remove custom payload logic, simplify slip verification.” Include the date.
+When shipping changes, bump `SAN8N_VERSION` and update `readme.txt` changelog.
 
-Update `plan.md` to capture goals, tasks, risks, acceptance criteria, and roadmap.
+2. Checkout Display (Static Placeholder)
 
-2. Update the Checkout Display
+Render the configured static QR image in `payment_fields()` for Classic checkout. If `qr_image_url` is empty, fall back to `assets/images/qr-placeholder.svg`.
 
-Render the PromptPay shortcode. In `payment_fields()`, remove any calls to `generate_qr_payload()` and output:
+Blocks checkout should receive the same URL via `includes/class-san8n-blocks-integration.php` (exposed as `qr_placeholder`) for a consistent UI.
 
-`echo do_shortcode( sprintf('[promptpayqr amount="%s"]', esc_attr( (float) WC()->cart->get_total('edit') )) );`
-
-Notes:
-- Do not pass `id` to the shortcode. Rely on PromptPay plugin settings for the ID.
-- Ensure the amount is a plain float (no currency symbols/formatting).
-
-Provide a graceful fallback. If the shortcode is not registered (PromptPay plugin inactive), render a small notice and show the existing SVG placeholder at `assets/images/qr-placeholder.svg` so checkout remains usable.
-
-Retain the slip upload UI. The file input (#san8n-slip-upload), preview area and verify button can remain. Ensure the data attribute data-max-size still reflects the configured file size limit.
-
-Remove hidden inputs related to the removed dynamic payload/price logic.
+Retain the slip upload UI: `#san8n-slip-upload`, preview area, and verify button. Ensure file size limits are honored (data attributes) and layout is responsive on small screens.
 
 3. Modify the Checkout JavaScript
 
@@ -64,10 +54,11 @@ Keep the SVG placeholder as a graceful fallback only (when the PromptPay shortco
 
 After modifications, verify that the plugin activates without errors and the settings page loads correctly.
 
-On the checkout page, the PromptPay shortcode QR should render the code with the locked amount. If the shortcode is unavailable, the SVG fallback should display. Slip upload should function, and the mock verification should update the order status as expected.
+On the checkout page, the static QR image should display in both Classic and Blocks checkout. If `qr_image_url` is empty, the bundled SVG should display. Slip upload should function, and verification should update the order status as expected.
 
 Maintain backwards‑compatible hooks and filters where possible. If you remove an option, consider cleaning up its value on plugin activation or migration.
 
 Notes / Roadmap (do not implement in this iteration):
-- Medium term: Re-render the shortcode HTML via AJAX on WooCommerce `update_checkout` to keep the amount in sync.
-- Long term: Add WooCommerce Blocks support with a dedicated Blocks payment method integration.
+- Decide verification backend (n8n vs Laravel) and standardize response contract.
+- Add async polling/status endpoint usage and UX improvements (progress, retries).
+- Consider dynamic QR generation only if product requirements change.

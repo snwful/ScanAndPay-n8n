@@ -1,34 +1,31 @@
 # Scan & Pay (n8n) — WooCommerce Payment Gateway
 
-PromptPay QR checkout for WooCommerce with inline slip verification via n8n.
+Static QR checkout for WooCommerce with inline slip verification.
 
 ## Overview
-- Renders a PromptPay QR using the `[promptpayqr]` shortcode. Amount is locked to the cart/order total.
-- Customers upload a payment slip; the plugin verifies it via an n8n webhook and updates the order on approval.
+- Displays a static QR placeholder image configured via the WordPress Media Library (with a bundled SVG fallback).
+- Customers upload a payment slip; the plugin verifies it via a backend service (n8n supported; Laravel planned) and updates the order on approval.
 
 ## Requirements
 - WordPress 6.0+ and PHP 8.0+
 - WooCommerce 7.0+
-- PromptPay plugin (external) or the bundled `promptpay/` module. If the shortcode is missing, the bundled module is auto-bootstrapped.
 
 ## Installation
 1) Upload the plugin to `wp-content/plugins/` and activate it.
-2) Ensure the PromptPay plugin is active/configured, or rely on the bundled module (auto-loaded if the shortcode is missing).
+2) In WooCommerce → Settings → Payments → Scan & Pay (n8n), configure the QR image and verification backend.
 
 ## Configuration
-- WooCommerce → Settings → Payments → Scan & Pay (n8n)
-- Set n8n webhook URL and shared secret.
-- Configure PromptPay ID in the PromptPay plugin settings.
+- Select a QR placeholder image via the Media Library (or use the default SVG).
+- Set your verification backend webhook URL and shared secret (n8n supported; Laravel planned).
 
 ## Usage
-- Classic checkout renders the QR via `[promptpayqr amount="{float}"]` in `payment_fields()`.
-- If the shortcode is unavailable, a notice and an SVG placeholder are shown.
-- Blocks checkout currently shows a placeholder image (roadmap to render live QR).
+- Classic and Blocks checkout both render the configured static QR placeholder image.
+- Customers upload a payment slip and verify inline; on approval, the order is updated automatically.
 
 ## Troubleshooting
-- If the QR doesn’t appear: confirm `promptpay/css/main.css` and `promptpay/js/main.min.js` load on checkout.
-- Test the shortcode on a regular page: `[promptpayqr amount="50.00"]`.
-- Check that the PromptPay ID is configured in its settings.
+- If the QR doesn’t appear: ensure a QR image is selected in settings or that the fallback exists at `assets/images/qr-placeholder.svg`.
+- Clear browser and site caches; verify no console errors from checkout scripts.
+- Confirm REST endpoint is reachable: `POST /wp-json/wc-scanandpay/v1/verify-slip` should return validation errors without a file.
 
 ## WordPress Directory Readme
 See `readme.txt` for changelog and detailed instructions.

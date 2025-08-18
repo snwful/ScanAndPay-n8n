@@ -4,29 +4,27 @@
 Rules and map for agents (Codex/Windsurf/Cursor) to work safely on this WooCommerce plugin.
 
 ## Key Files
-- scanandpay-n8n.php (bootstrap, SAN8N_VERSION)
-- includes/class-san8n-gateway.php (settings, checkout UI)
+- scanandpay-n8n.php (bootstrap, constants like `SAN8N_REST_NAMESPACE`)
+- includes/class-san8n-gateway.php (settings incl. `qr_image_url`, classic checkout UI)
 - includes/class-san8n-rest-api.php (POST /verify-slip)
-- includes/class-san8n-blocks-integration.php (Blocks checkout integration)
-- assets/js/checkout-inline.js (classic checkout)
-- assets/js/admin.js (admin UX)
+- includes/class-san8n-blocks-integration.php (Blocks checkout integration; passes `qr_placeholder`)
+- assets/js/checkout-inline.js (classic checkout logic)
+- assets/js/blocks-integration.js (Blocks UI logic)
+- assets/js/admin.js and assets/js/settings.js (admin UX incl. Media Library picker)
+- assets/images/qr-placeholder.svg (default QR placeholder)
 - readme.txt (Changelog)
 - context.md / instructions.md / evaluation.md / plan.md
-- promptpay/ (bundled PromptPay shortcode provider; auto-bootstrapped if shortcode missing)
 
 ## Current Mission
-- Render PromptPay QR via shortcode: `[promptpayqr amount="{cart_total_float}"]`
-- Use PromptPay ID from PromptPay plugin settings (do not pass `id` in shortcode)
-- Slip verify via n8n (mock ok); trust n8n decision
-- Remove custom QR payload logic (`generate_qr_payload`) and any `promptpay_payload` usage
-- Keep security: nonce, file type/size, strip EXIF, caps
-- Classic checkout: renders live QR via shortcode in `payment_fields()` with fallback SVG if shortcode missing
-- Blocks checkout: placeholder by default; live QR can be enabled via `san8n_blocks_live_qr` filter which renders a `.ppy-card` initialized by PromptPay JS
+- Use a static QR placeholder image configured via WordPress Media Library (`qr_image_url` setting). If empty, fall back to `assets/images/qr-placeholder.svg`.
+- Ensure both Classic and Blocks checkout display the placeholder image consistently and responsively.
+- Slip verification is handled via REST `POST /wp-json/wc-scanandpay/v1/verify-slip`, which forwards to an external service. Backend choice (n8n vs Laravel) is pending; currently n8n is supported.
+- Maintain security: nonces, file type/size validation, EXIF stripping, capability checks.
 
-## API (internal → n8n)
-POST /wp-json/wc-scanandpay/v1/verify-slip  (multipart)
-- slip_image (file), session_token, order_id, order_total, customer_email?
-n8n → { status: approved|rejected, reference_id?, approved_amount?, reason? }
+## API (internal → verification backend)
+POST /wp-json/wc-scanandpay/v1/verify-slip (multipart)
+- slip_image (file), session_token, order_id, order_total
+Backend (n8n or Laravel TBD) → { status: approved|rejected, reference_id?, approved_amount?, reason? }
 
 ## Policies
 - Bump plugin header + SAN8N_VERSION every change
@@ -35,21 +33,20 @@ n8n → { status: approved|rejected, reference_id?, approved_amount?, reason? }
 - PHPCS clean; WP/WC compatibility intact
 
 ## Do / Don’t
-- Use `echo do_shortcode('[promptpayqr amount="…"]')` in `payment_fields()`
-- Localize needed data via `wp_localize_script` (e.g., numeric `order_total`)
-- Pass a plain float for amount (no currency symbol/locale formatting)
-- Don’t build custom QR payloads or store `promptpay_payload`
-- Don’t gate logic on cart_hash or re-approve resets for price changes (see roadmap)
-- Don’t add new deps without reason
+- Do use the `qr_image_url` setting and Media Library picker for the QR placeholder.
+- Do localize needed data via `wp_localize_script` (e.g., numeric `order_total`).
+- Don’t render PromptPay shortcode or generate custom QR payloads.
+- Don’t depend on cart_hash for verification; keep payload minimal (order_id, order_total, session_token, slip_image).
+- Don’t add new deps without reason.
 
 ## Definition of Done
-- Checkout renders PromptPay QR via shortcode with amount locked to cart total
-- No references to `generate_qr_payload` or `promptpay_payload`
-- REST accepts expected params and handles n8n mock response
-- Version bumped + readme.txt changelog updated
-- plan.md updated; evaluation.md checks pass
+- Settings page includes a working Media Library picker that saves `qr_image_url` and shows a preview.
+- Classic and Blocks checkout show the selected static QR placeholder (or default SVG) responsively without layout bugs.
+- REST endpoint `/wp-json/wc-scanandpay/v1/verify-slip` accepts expected params and handles backend (currently n8n) responses.
+- Version and changelog are consistent; plan.md updated; evaluation.md checks pass.
 
 ## Roadmap
-- Medium term: Re-render QR on `update_checkout` via AJAX to fetch refreshed shortcode HTML so the locked amount always matches the latest total
-- Short/medium: Improve Blocks integration to render live QR by default; currently gated via `san8n_blocks_live_qr` filter
-- Long term: Add WooCommerce Blocks support (separate integration path; React-based, not `payment_fields()`)
+- Decide verification backend: continue with n8n or switch to Laravel; standardize response contract.
+- Optional: add progress UI and retry logic for verification flow.
+- Enhance Blocks UX parity with Classic (e.g., express/auto-submit flows as applicable).
+- Add end-to-end tests for slip verification and admin actions.

@@ -6,25 +6,24 @@ Functional Tests
 
 Settings page:
 
-- The gateway no longer uses a QR image setting. No Media Library field is added.
+- The gateway includes a Media Library field for selecting the QR placeholder image (`qr_image_url`).
+- Preview of the selected image renders correctly and persists after save.
 
-- The gateway’s own “PromptPay Payload/ID” field and related validators are removed; the PromptPay ID is sourced from the PromptPay plugin’s settings.
+- Legacy PromptPay-related fields and validators are removed.
 
 Checkout page:
 
-- The PromptPay QR is rendered via shortcode: `[promptpayqr amount="{cart_total_float}"]`, locking the amount to the current cart/order total.
+- A static QR placeholder image is displayed in both Classic and Blocks checkout. If `qr_image_url` is unset, the fallback `assets/images/qr-placeholder.svg` is used.
 
-- Customers can upload a slip file (JPG/PNG) and see a preview. The verify button triggers a request containing order_id, order_total, session_token and the image file; no cart_hash or cart_total are sent.
+- Customers can upload a slip file (JPG/PNG) and see a preview. The verify button triggers a request containing `order_id`, `order_total`, `session_token` and the image file; no `cart_hash` is sent.
 
-- No JavaScript errors appear in the console; legacy logic specific to custom QR payloads is removed.
+- No JavaScript errors appear in the console; all legacy PromptPay/shortcode logic is removed.
 
-- PromptPay assets load: `promptpay/css/main.css` and `promptpay/js/main.min.js` are enqueued on checkout when the shortcode is present (either from external plugin or bundled bootstrap). If absent, expect the fallback SVG only.
-
-- Classic vs Blocks: Classic shows a live QR. Blocks currently shows a placeholder image unless explicitly implemented to render a `.ppy-card` and initialize PromptPay JS.
+- Classic vs Blocks: Both show the same placeholder; layout is responsive with no overflow or distortion on small screens.
 
 REST API:
 
-POST requests to /verify-slip accept order_id, order_total, slip_image and session_token but not cart_total/cart_hash.
+POST requests to `/wp-json/wc-scanandpay/v1/verify-slip` accept `order_id`, `order_total`, `slip_image` and `session_token` (no `cart_total`/`cart_hash`).
 
 Upon receiving a mock “approved” response, the order status changes to “processing” or “completed”, meta fields are updated, and a success message is returned. A mock “rejected” response should result in an appropriate error message.
 
@@ -32,7 +31,7 @@ Code Quality
 
 The code compiles without syntax or fatal errors. All referenced functions, classes and variables exist.
 
-No unused imports or variables remain (e.g., promptpay_payload, generate_qr_payload() etc.).
+No unused imports or variables remain (e.g., `promptpay_payload`, `generate_qr_payload()` etc.).
 
 Comments and docblocks are updated to reflect the new behaviour.
 
@@ -52,8 +51,8 @@ The plugin continues to conform to WordPress coding standards (indentation, nami
 
 User Experience
 
-The admin interface remains intuitive; no extra QR image settings are required.
+The admin interface remains intuitive; the QR image setting is clearly labeled and includes a preview.
 
-Customers are clearly instructed to scan the QR; their banking app shows the locked amount from the QR.
+Customers are clearly instructed to scan the displayed QR placeholder and upload their slip; verification feedback is clear.
 
 Error messages remain informative and are translated via language files where possible.

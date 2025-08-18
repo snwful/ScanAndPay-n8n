@@ -8,19 +8,18 @@ Stable tag: 1.1.1
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-WooCommerce payment gateway that integrates with n8n for inline PromptPay slip verification on the checkout page.
+WooCommerce payment gateway that shows a static QR placeholder image (configurable via WordPress Media Library) and verifies uploaded payment slips inline via a backend service.
 
 == Description ==
 
-Scan & Pay (n8n) is a WooCommerce payment gateway plugin that enables customers to pay using PromptPay QR codes and verify their payment inline during checkout without leaving the page.
+Scan & Pay (n8n) is a WooCommerce payment gateway plugin that enables customers to pay using QR codes and verify their payment inline during checkout without leaving the page.
 
 = Key Features =
 
-* **Inline Payment Verification** - Customers can verify payment without leaving checkout
-* **Two Checkout Modes** - Support for both Classic and Blocks checkout
-* **Auto-submit Option** - Automatically submit orders after payment approval
-* **Express Payment Button** - Quick payment option in Blocks mode
-* **Secure Integration** - HMAC-signed communication with n8n webhook
+* **Static QR Placeholder** - Select a QR image via the WordPress Media Library (with default fallback SVG)
+* **Inline Payment Verification** - Customers verify payment without leaving checkout
+* **Two Checkout Modes** - Support for both Classic and Blocks checkout (both display the static placeholder)
+* **Secure Integration** - HMAC-signed communication with your verification backend
 * **Admin Management** - Complete order management with slip preview and actions
 * **File Security** - EXIF data stripping and randomized filenames
 * **Rate Limiting** - Built-in protection against abuse
@@ -32,7 +31,7 @@ Scan & Pay (n8n) is a WooCommerce payment gateway plugin that enables customers 
 * WordPress 6.0 or higher
 * WooCommerce 7.0 or higher
 * PHP 8.0 or higher
-* n8n webhook endpoint configured
+* Verification backend service (n8n currently supported; Laravel planned)
 * GD or Imagick PHP extension for image processing
 
 == Installation ==
@@ -42,8 +41,8 @@ Scan & Pay (n8n) is a WooCommerce payment gateway plugin that enables customers 
 3. Go to WooCommerce > Settings > Payments
 4. Enable "Scan & Pay (n8n)" payment method
 5. Configure your settings:
-   - Enter your PromptPay ID/Phone number
-   - Set your n8n webhook URL and secret
+   - Select your QR placeholder image via the Media Library
+   - Set your verification backend webhook URL and shared secret (n8n currently supported; Laravel planned)
    - Configure file upload limits and retention
    - Enable desired checkout modes
 
@@ -53,11 +52,11 @@ Scan & Pay (n8n) is a WooCommerce payment gateway plugin that enables customers 
 
 * **Title** - Payment method title shown to customers
 * **Description** - Payment method description
-* **PromptPay ID** - Your PromptPay identifier (phone/ID/tax number)
+* **QR Image** - Select a QR placeholder image via the Media Library; falls back to bundled SVG
 
-= n8n Integration =
+= Verification Backend =
 
-* **Webhook URL** - Your n8n webhook endpoint URL
+* **Webhook URL** - Your verification service endpoint (n8n supported; Laravel planned)
 * **Webhook Secret** - Shared secret for HMAC signing
 * **Amount Tolerance** - Acceptable payment difference (THB)
 * **Time Window** - Payment verification time limit (minutes)
@@ -122,8 +121,8 @@ Scan & Pay (n8n) is a WooCommerce payment gateway plugin that enables customers 
 
 = REST API Endpoints =
 
-* `POST /wp-json/san8n/v1/verify-slip` - Verify payment slip
-* `GET /wp-json/san8n/v1/status` - Check verification status
+* `POST /wp-json/wc-scanandpay/v1/verify-slip` - Verify payment slip
+* `GET /wp-json/wc-scanandpay/v1/status/{token}` - Check verification status
 
 = Constants =
 
@@ -138,9 +137,9 @@ Scan & Pay (n8n) is a WooCommerce payment gateway plugin that enables customers 
 = Common Issues =
 
 **Payment not verifying:**
-- Check n8n webhook URL is correct
+- Check verification backend URL is correct
 - Verify webhook secret matches
-- Ensure n8n service is running
+- Ensure verification service is running
 - Check server time synchronization
 
 **File upload errors:**
@@ -159,15 +158,15 @@ Scan & Pay (n8n) is a WooCommerce payment gateway plugin that enables customers 
 
 = Does this plugin support WooCommerce Blocks? =
 
-Yes, full support for both Classic and Blocks checkout with dedicated UI for each.
+Yes. Both Classic and Blocks checkout display the configured static QR placeholder image.
 
 = Can I use this without n8n? =
 
-No, this plugin requires n8n webhook integration for payment verification.
+You need a verification backend. n8n is supported today; Laravel support is planned. Configure your webhook URL and secret in settings.
 
 = Is the QR code generated dynamically? =
 
-Version 1.0 uses a placeholder QR. Dynamic EMVCo QR generation is planned for v2.
+No. The plugin displays a static QR placeholder image selected in settings. Dynamic QR generation may be considered in the future if requirements change.
 
 = Can customers pay multiple times? =
 

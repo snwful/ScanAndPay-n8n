@@ -1,28 +1,31 @@
 # plan.md — Sprint Plan (2025-08-25)
 
 ## Goal
-Fix PromptPay QR rendering on checkout; ensure shortcode and assets load automatically and maintain fallback. Prepare optional live QR path for Blocks checkout.
+Finalize documentation and plan the verification backend decision and integration while maintaining the static QR placeholder architecture across Classic and Blocks checkout.
 
 ## Tasks
-- [x] Auto-bootstrap bundled PromptPay plugin when shortcode missing (guard against double load)
-- [x] Conditionally enqueue PromptPay CSS/JS when shortcode present
-- [x] Ensure Classic checkout renders live QR via shortcode with SVG fallback
-- [x] Add filter to optionally enable live QR on Blocks checkout
-- [x] Bump version and update changelog
+- [x] Update docs to reflect static QR via Media Library, Classic/Blocks parity, responsive fixes, and REST namespace `wc-scanandpay/v1`.
+- [ ] Decide verification backend: n8n vs Laravel.
+- [ ] Define verification response contract: `{ status: approved|rejected, reference_id?, approved_amount?, reason? }`.
+- [ ] Implement backend adapter in `includes/class-san8n-rest-api.php` to call chosen service.
+- [ ] Confirm security: nonce, rate limiting, file validation, EXIF stripping.
+- [ ] Optional: add `/status/{token}` polling usage and UI progress indicators.
+- [ ] Update README/readme.txt sections as needed after backend decision.
 
 ## Risks/Mitigations
-- External PromptPay plugin active → use shortcode_exists/class check before bootstrapping
-- Blocks live QR disabled by default to avoid regressions
-- Shortcode missing → fallback placeholder displayed
+- Backend availability/latency → timeouts and retries; clear user messaging.
+- File size/type differences across hosts → configurable limits and server-side validation.
+- Security of webhook → HMAC signing, HTTPS, nonce validation, minimal payload.
 
 ## Acceptance Criteria
-- Classic checkout shows live QR when PromptPay available
-- PromptPay assets only load when shortcode exists
-- Blocks integration can opt into live QR via `san8n_blocks_live_qr` filter
-- PHPCS passes
+- Static QR image displays correctly in Classic and Blocks, responsive on mobile.
+- `POST /wp-json/wc-scanandpay/v1/verify-slip` forwards to chosen backend and updates order based on response.
+- Admin can set QR image via Media Library and configure webhook URL/secret.
+- Documentation updated (README.md, readme.txt, context.md, instructions.md, evaluation.md, feedback.md, AGENTS.md).
+- PHPCS passes (where applicable) and no console errors on checkout.
 
 ## Next
-- AJAX re-render of shortcode on `update_checkout` for dynamic totals
-- Full Blocks React integration without feature flag
-- Real n8n/bank integration
-- Add end-to-end tests for slip verification
+- Choose and integrate backend (n8n or Laravel) and finalize adapter.
+- Add end-to-end tests for slip verification flows.
+- Consider async status polling and richer UX feedback.
+- Evaluate feasibility of dynamic QR only if product requirements change.
