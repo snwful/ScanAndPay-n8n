@@ -372,20 +372,16 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
             call_user_func('wp_enqueue_style', 'san8n-checkout');
         }
 
-        // Ensure PromptPay assets when shortcode is available
+        // Ensure PromptPay assets when shortcode is available (only if registered by PromptPay plugin)
         if (is_callable('shortcode_exists') && call_user_func('shortcode_exists', 'promptpayqr')) {
             if (is_callable('wp_style_is') && is_callable('wp_enqueue_style')) {
-                if (!call_user_func('wp_style_is', 'ppy-main-style', 'enqueued') && !call_user_func('wp_style_is', 'ppy-main-style', 'registered')) {
-                    call_user_func('wp_enqueue_style', 'ppy-main-style', SAN8N_PLUGIN_URL . 'promptpay/css/main.css', array(), SAN8N_VERSION);
-                } else {
+                if (call_user_func('wp_style_is', 'ppy-main-style', 'enqueued') || call_user_func('wp_style_is', 'ppy-main-style', 'registered')) {
                     call_user_func('wp_enqueue_style', 'ppy-main-style');
                 }
             }
 
             if (is_callable('wp_script_is') && is_callable('wp_enqueue_script')) {
-                if (!call_user_func('wp_script_is', 'ppy-main-script', 'enqueued') && !call_user_func('wp_script_is', 'ppy-main-script', 'registered')) {
-                    call_user_func('wp_enqueue_script', 'ppy-main-script', SAN8N_PLUGIN_URL . 'promptpay/js/main.min.js', array('jquery'), SAN8N_VERSION, true);
-                } else {
+                if (call_user_func('wp_script_is', 'ppy-main-script', 'enqueued') || call_user_func('wp_script_is', 'ppy-main-script', 'registered')) {
                     call_user_func('wp_enqueue_script', 'ppy-main-script');
                 }
             }

@@ -93,23 +93,14 @@ final class SAN8N_Blocks_Integration extends SAN8N_AbstractPaymentMethodType_Run
         // Optionally load PromptPay assets for live QR in Blocks
         $live_qr = is_callable('apply_filters') ? call_user_func('apply_filters', 'san8n_blocks_live_qr', false) : false;
         if ($live_qr && is_callable('shortcode_exists') && call_user_func('shortcode_exists', 'promptpayqr')) {
-            $style_is = function_exists('wp_style_is') ? 'wp_style_is' : null;
-            $script_is = function_exists('wp_script_is') ? 'wp_script_is' : null;
-
-            if (is_callable('wp_enqueue_style')) {
-                $style_registered = $style_is ? ($style_is('ppy-main-style', 'registered') || $style_is('ppy-main-style', 'enqueued')) : false;
-                if (!$style_registered) {
-                    call_user_func('wp_enqueue_style', 'ppy-main-style', SAN8N_PLUGIN_URL . 'promptpay/css/main.css', array(), SAN8N_VERSION);
-                } else {
+            if (is_callable('wp_style_is') && is_callable('wp_enqueue_style')) {
+                if (call_user_func('wp_style_is', 'ppy-main-style', 'enqueued') || call_user_func('wp_style_is', 'ppy-main-style', 'registered')) {
                     call_user_func('wp_enqueue_style', 'ppy-main-style');
                 }
             }
 
-            if (is_callable('wp_enqueue_script')) {
-                $script_registered = $script_is ? ($script_is('ppy-main-script', 'registered') || $script_is('ppy-main-script', 'enqueued')) : false;
-                if (!$script_registered) {
-                    call_user_func('wp_enqueue_script', 'ppy-main-script', SAN8N_PLUGIN_URL . 'promptpay/js/main.min.js', array('jquery'), SAN8N_VERSION, true);
-                } else {
+            if (is_callable('wp_script_is') && is_callable('wp_enqueue_script')) {
+                if (call_user_func('wp_script_is', 'ppy-main-script', 'enqueued') || call_user_func('wp_script_is', 'ppy-main-script', 'registered')) {
                     call_user_func('wp_enqueue_script', 'ppy-main-script');
                 }
             }
