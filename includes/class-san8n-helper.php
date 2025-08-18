@@ -31,7 +31,7 @@ class SAN8N_Helper {
             'meta_compare' => '='
         );
         
-        $orders = wc_get_orders($args);
+        $orders = is_callable('wc_get_orders') ? call_user_func('wc_get_orders', $args) : array();
         return !empty($orders) ? $orders[0] : false;
     }
 
@@ -42,7 +42,8 @@ class SAN8N_Helper {
      */
     public static function sanitize_filename($filename) {
         $ext = pathinfo($filename, PATHINFO_EXTENSION);
-        $name = 'slip_' . wp_generate_password(16, false);
+        $rand = is_callable('wp_generate_password') ? call_user_func('wp_generate_password', 16, false) : substr(str_shuffle('abcdefghijklmnopqrstuvwxyz0123456789'), 0, 16);
+        $name = 'slip_' . $rand;
         return $name . '.' . $ext;
     }
 
@@ -78,19 +79,23 @@ class SAN8N_Helper {
      * @return string
      */
     public static function get_status_badge($status) {
+        $tr = function($text) { return is_callable('__') ? call_user_func('__', $text, 'scanandpay-n8n') : $text; };
+        $esc_attr = function($v) { return is_callable('esc_attr') ? call_user_func('esc_attr', $v) : htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); };
+        $esc_html = function($v) { return is_callable('esc_html') ? call_user_func('esc_html', $v) : htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); };
+
         $status_labels = array(
-            'approved' => __('Approved', 'scanandpay-n8n'),
-            'rejected' => __('Rejected', 'scanandpay-n8n'),
-            'pending' => __('Pending', 'scanandpay-n8n'),
-            'expired' => __('Expired', 'scanandpay-n8n')
+            'approved' => $tr('Approved'),
+            'rejected' => $tr('Rejected'),
+            'pending' => $tr('Pending'),
+            'expired' => $tr('Expired')
         );
         
         $label = isset($status_labels[$status]) ? $status_labels[$status] : ucfirst($status);
         
         return sprintf(
             '<span class="san8n-status-badge san8n-status-%s">%s</span>',
-            esc_attr($status),
-            esc_html($label)
+            $esc_attr($status),
+            $esc_html($label)
         );
     }
 
@@ -99,7 +104,7 @@ class SAN8N_Helper {
      * @return bool
      */
     public static function is_test_mode() {
-        $settings = get_option(SAN8N_OPTIONS_KEY, array());
+        $settings = is_callable('get_option') ? call_user_func('get_option', SAN8N_OPTIONS_KEY, array()) : array();
         return isset($settings['test_mode']) && $settings['test_mode'] === 'yes';
     }
 
