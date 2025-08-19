@@ -9,3 +9,9 @@ Potential Issues or Blind Spots – Note any assumptions or areas that might nee
 Future Improvements – Suggest enhancements such as progress UI for verification, retries, async status polling, choosing and integrating the final verification backend (n8n or Laravel), and possible future dynamic QR generation if requirements change.
 
 Structure the feedback as bullet points or short paragraphs. Aim to be honest and constructive, highlighting strengths and weaknesses of the solution.
+ 
+ Roadmap Alignment (Short/Mid/Long)
+ 
+ - Short term: Use n8n IMAP/email alert parsing to verify incoming funds before relying on slips; document the flow and security controls.
+ - Medium term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both backends.
+ - Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.

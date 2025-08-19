@@ -59,6 +59,6 @@ On the checkout page, the static QR image should display in both Classic and Blo
 Maintain backwards‑compatible hooks and filters where possible. If you remove an option, consider cleaning up its value on plugin activation or migration.
 
 Notes / Roadmap (do not implement in this iteration):
-- Decide verification backend (n8n vs Laravel) and standardize response contract.
-- Add async polling/status endpoint usage and UX improvements (progress, retries).
-- Consider dynamic QR generation only if product requirements change.
+- Short term: Use n8n IMAP/email alert parsing to verify incoming funds before relying on slips; document the flow and security controls.
+- Medium term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both backends.
+- Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.

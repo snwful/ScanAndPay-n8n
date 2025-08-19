@@ -46,7 +46,7 @@ Backend (n8n or Laravel TBD) → { status: approved|rejected, reference_id?, app
 - Version and changelog are consistent; plan.md updated; evaluation.md checks pass.
 
 ## Roadmap
-- Decide verification backend: continue with n8n or switch to Laravel; standardize response contract.
-- Optional: add progress UI and retry logic for verification flow.
-- Enhance Blocks UX parity with Classic (e.g., express/auto-submit flows as applicable).
-- Add end-to-end tests for slip verification and admin actions.
+- Short term (Now): Integrate n8n IMAP/email alert parsing as a verification source to confirm incoming funds before relying on slips; document flow and security controls.
+- Mid term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both n8n and Laravel backends.
+- Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.
+- Additionally: Add progress UI, retry logic, and optional status polling to improve user feedback.

@@ -29,3 +29,9 @@ Static QR checkout for WooCommerce with inline slip verification.
 
 ## WordPress Directory Readme
 See `readme.txt` for changelog and detailed instructions.
+
+## Roadmap
+
+- Short term: Use n8n IMAP/email alert parsing to verify incoming funds before relying on slips; document the flow and security controls.
+- Medium term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both backends.
+- Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.

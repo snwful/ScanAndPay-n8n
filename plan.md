@@ -1,7 +1,10 @@
 # plan.md — Sprint Plan (2025-08-25)
 
 ## Goal
-Finalize documentation and plan the verification backend decision and integration while maintaining the static QR placeholder architecture across Classic and Blocks checkout.
+Finalize docs and execute a phased roadmap:
+- Short: use n8n IMAP/email alerts to verify incoming funds before relying on slips.
+- Mid: add optional Laravel API adapter selectable in settings; standardize response contract.
+- Long: implement slipless unique-amount + email/SMS alert + webhook matching via Laravel.
 
 ## Tasks
 - [x] Update docs to reflect static QR via Media Library, Classic/Blocks parity, responsive fixes, and REST namespace `wc-scanandpay/v1`.
@@ -25,7 +28,6 @@ Finalize documentation and plan the verification backend decision and integratio
 - PHPCS passes (where applicable) and no console errors on checkout.
 
 ## Next
-- Choose and integrate backend (n8n or Laravel) and finalize adapter.
-- Add end-to-end tests for slip verification flows.
-- Consider async status polling and richer UX feedback.
-- Evaluate feasibility of dynamic QR only if product requirements change.
+- Short: document and wire n8n IMAP/email parsing → backend verification; add UI copy and countdown guidance.
+- Mid: implement Laravel adapter option and shared response schema; expose a settings toggle.
+- Long: design slipless unique-amount flow, idempotent webhook, manual review queue; plan migration steps.

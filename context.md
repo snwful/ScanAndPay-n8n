@@ -27,6 +27,6 @@ Desired Changes
 
 Roadmap
 
-- Short term: Finalize backend selection (n8n or Laravel) and implement adapter.
-- Medium term: Add async status/polling endpoint usage and better user feedback.
-- Long term: Consider dynamic QR generation if product requirements change.
+- Short term: Use n8n IMAP/email alert parsing to verify incoming funds before relying on slips; document the flow and security controls.
+- Medium term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both backends.
+- Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.

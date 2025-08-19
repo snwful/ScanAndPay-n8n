@@ -56,3 +56,9 @@ The admin interface remains intuitive; the QR image setting is clearly labeled a
 Customers are clearly instructed to scan the displayed QR placeholder and upload their slip; verification feedback is clear.
 
 Error messages remain informative and are translated via language files where possible.
+
+Roadmap Alignment
+
+- Short term: Use n8n IMAP/email alert parsing to verify incoming funds before relying on slips; document the flow and security controls.
+- Medium term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both backends.
+- Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.

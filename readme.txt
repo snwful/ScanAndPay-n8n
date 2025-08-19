@@ -180,6 +180,12 @@ Configurable retention period (default 30 days) with automatic cleanup.
 
 Yes, administrators can manually approve or reject payments from the order edit page.
 
+== Roadmap ==
+
+- Short term: Use n8n IMAP/email alert parsing to verify incoming funds before relying on slips; document the flow and security controls.
+- Medium term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both backends.
+- Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.
+
 == Changelog ==
 
 = 1.1.1 - 2025-08-25 =
