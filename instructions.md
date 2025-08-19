@@ -2,7 +2,7 @@ Instructions for Codex
 
 This file outlines the tasks Codex must perform to refactor the Scan & Pay (n8n) WooCommerce gateway according to the new requirements. Follow these steps carefully and ensure the final code compiles without syntax errors or undefined variables.
 
-Status: As of v1.1.1, the gateway uses a static QR placeholder image configured via the WordPress Media Library and displays it in both Classic and Blocks checkout. Slip verification posts to `/wp-json/wc-scanandpay/v1/verify-slip` and forwards to a backend verifier (n8n currently supported; Laravel under consideration). Keep this file as a maintenance guide.
+Status: As of v1.1.1, the gateway uses a static QR placeholder image configured via the WordPress Media Library and displays it in both Classic and Blocks checkout. Slip verification posts to `/wp-json/wc-scanandpay/v1/verify-slip` and forwards to a selectable backend verifier (n8n default; Laravel optional) using a unified response contract. Keep this file as a maintenance guide.
 
 1. Settings: Media Library Picker
 
@@ -10,7 +10,7 @@ Add/maintain a Media Library field for the QR placeholder image in `includes/cla
 
 Show a live preview on the settings screen (see `assets/js/settings.js`). Persist the value and ensure proper sanitization/escaping.
 
-Keep operational settings (webhook URL, shared secret, limits/messages). Remove any legacy options related to dynamic QR generation.
+Keep operational settings (webhook URL, shared secret, limits/messages). Remove any legacy options related to dynamic QR generation. Ensure backend toggle and per-backend URL/secret fields exist.
 
 When shipping changes, bump `SAN8N_VERSION` and update `readme.txt` changelog.
 
@@ -38,7 +38,7 @@ Route parameters. Update the route definition for /verify-slip so that `cart_tot
 
 Process the request. In verify_slip(), after handling the file upload, retrieve order_id and order_total from the request. You may still look up the order with wc_get_order($order_id) to ensure it exists and to record meta data.
 
-Call n8n. Build a request body containing the slip image and an order object with id and total. Use mock logic at this stage; you can simulate a status => approved response for testing.
+Call verifier adapter. Build a multipart request body containing the slip image and an order object with id and total. The factory selects n8n or Laravel based on settings. You may use mock logic when testing locally.
 
 Handle the response. Based on n8n’s returned status (approved or rejected), update the order’s meta (_san8n_status, _san8n_reference_id, etc.), call $order->payment_complete() where appropriate, and return a JSON response to the client.
 
@@ -62,7 +62,7 @@ Maintain backwards‑compatible hooks and filters where possible. If you remove 
 
 - Backend Adapter (n8n/Laravel):
   - Keep unified response schema `{ status: approved|rejected, message?, approved_amount?, reference_id? }`.
-  - Maintain HMAC signing and HTTPS with SSL verification; configurable timeout/retry.
+  - Maintain HMAC signing and HTTPS with SSL verification; configurable timeout/retry via `san8n_verifier_timeout` and `san8n_verifier_retries` (args include backend id: `n8n` or `laravel`).
 - Security & Anti-reuse:
   - Optional: compute and store slip hash to prevent reuse across orders.
   - Optional: add safe support for `webp/jfif` with strict server-side validation.
@@ -76,3 +76,18 @@ Notes / Roadmap (do not implement in this iteration):
 - Short term: Use n8n IMAP/email alert parsing to verify incoming funds; document the flow and security controls.
 - Medium term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both backends under checkout-only flow.
 - Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.
+
+## Short-term Tasks (Phases 1–3)
+
+### Phase 1 — Settings QA
+- [ ] Toggle backend shows correct fields; “Test Backend” relabels and moves next to active URL field
+- [ ] Test AJAX returns clear success/error without exposing URL/secret; client validates HTTPS/required URL
+
+### Phase 2 — Checkout Regression
+- [ ] Classic and Blocks render identical static QR; no console errors
+- [ ] Upload slip → call `verify-slip` → receives approved/rejected; order updated accordingly
+- [ ] Test both backends (n8n default; Laravel optional/mock)
+
+### Phase 3 — Tests
+- [ ] Unit: factory selects adapter; response mapping conforms `{ status, message?, approved_amount?, reference_id? }`
+- [ ] Integration: REST happy-path and error/timeout/retry; filters `san8n_verifier_timeout`/`san8n_verifier_retries` honored

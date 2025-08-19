@@ -23,7 +23,7 @@ The plugin registers a WooCommerce payment gateway that presents a QR placeholde
 
 Desired Changes
 
-- Decide verification backend (n8n vs Laravel) and standardize response schema: `{ status, reference_id?, approved_amount?, reason? }`.
+- Backend selectable in settings (n8n default; Laravel optional) and standardize response schema: `{ status, reference_id?, approved_amount?, reason? }`.
 - Optional UX: progress indicators, retry, and async status polling via `/status/{token}`.
 - Continue maintenance of responsive layout and Blocks parity.
 
@@ -50,8 +50,24 @@ Any backend (n8n/Laravel) must return a uniform JSON object:
 }
 ```
 - All requests are HMAC-signed; HTTPS required; SSL verification ON.
+ - Filters standardized: `san8n_verifier_timeout` (int $timeout, string $backend), `san8n_verifier_retries` (int $retries, string $backend)
 
 ## Phased Plan
 - Short term (Now): Use n8n IMAP/email alert parsing to confirm incoming funds; document flow/security; finalize checkout verification UX.
 - Mid term: Add Laravel adapter as selectable backend in settings; keep the same checkout-only response contract (approved|rejected).
 - Long term: Slipless unique-amount + alert + webhook matching; idempotency; manual review queue; richer bank parsers.
+
+## Short-term Tasks (Phases 1–3)
+
+### Phase 1 — Settings QA
+- [ ] Toggle backend shows correct fields; “Test Backend” relabels and moves next to active URL field
+- [ ] Test AJAX returns clear success/error without exposing URL/secret; client validates HTTPS/required URL
+
+### Phase 2 — Checkout Regression
+- [ ] Classic and Blocks render identical static QR; no console errors
+- [ ] Upload slip → call `verify-slip` → receives approved/rejected; order updated accordingly
+- [ ] Test both backends (n8n default; Laravel optional/mock)
+
+### Phase 3 — Tests
+- [ ] Unit: factory selects adapter; response mapping conforms `{ status, message?, approved_amount?, reference_id? }`
+- [ ] Integration: REST happy-path and error/timeout/retry; filters `san8n_verifier_timeout`/`san8n_verifier_retries` honored

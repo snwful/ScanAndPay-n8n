@@ -27,6 +27,9 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
     private $logger;
     private $n8n_webhook_url;
     private $shared_secret;
+    private $verifier_backend;
+    private $laravel_verify_url;
+    private $laravel_secret;
     private $auto_place_order_classic;
     private $blocks_mode;
     private $allow_blocks_autosubmit_experimental;
@@ -56,11 +59,15 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
         $this->enabled = $this->get_option('enabled');
         $this->n8n_webhook_url = $this->get_option('n8n_webhook_url');
         $this->shared_secret = $this->get_option('shared_secret');
+        $this->verifier_backend = $this->get_option('verifier_backend', 'n8n');
+        $this->laravel_verify_url = $this->get_option('laravel_verify_url', '');
+        $this->laravel_secret = $this->get_option('laravel_secret', '');
         $this->auto_place_order_classic = $this->get_option('auto_place_order_classic', 'yes') === 'yes';
         $this->blocks_mode = $this->get_option('blocks_mode', 'express');
         $this->allow_blocks_autosubmit_experimental = $this->get_option('allow_blocks_autosubmit_experimental', 'no') === 'yes';
         $this->show_express_only_when_approved = $this->get_option('show_express_only_when_approved', 'yes') === 'yes';
         $this->prevent_double_submit_ms = intval($this->get_option('prevent_double_submit_ms', '1500'));
+
         $this->max_file_size = intval($this->get_option('max_file_size', '5')) * 1024 * 1024; // Convert MB to bytes
         $this->allowed_file_types = array('jpg', 'jpeg', 'png');
         $this->retention_days = intval($this->get_option('retention_days', '30'));
@@ -100,6 +107,22 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                 'default' => $this->tr('Scan PromptPay QR code and upload payment slip for instant verification.'),
                 'desc_tip' => true,
             ),
+            'verifier_settings' => array(
+                'title' => $this->tr('Verification Backend'),
+                'type' => 'title',
+                'description' => $this->tr('Choose which backend to use for slip verification and configure its credentials.'),
+            ),
+            'verifier_backend' => array(
+                'title' => $this->tr('Backend'),
+                'type' => 'select',
+                'description' => $this->tr('Select the verification backend.'),
+                'default' => 'n8n',
+                'desc_tip' => true,
+                'options' => array(
+                    'n8n' => $this->tr('n8n'),
+                    'laravel' => $this->tr('Laravel')
+                )
+            ),
             'n8n_webhook_url' => array(
                 'title' => $this->tr('n8n Webhook URL'),
                 'type' => 'text',
@@ -114,6 +137,19 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                 'description' => $this->tr('Shared secret for HMAC signature verification.'),
                 'desc_tip' => true,
                 'custom_attributes' => array('required' => 'required')
+            ),
+            'laravel_verify_url' => array(
+                'title' => $this->tr('Laravel Verify URL'),
+                'type' => 'text',
+                'description' => $this->tr('The HTTPS verify endpoint URL of your Laravel backend.'),
+                'desc_tip' => true,
+                'placeholder' => 'https://your-laravel-app.com/api/verify-slip'
+            ),
+            'laravel_secret' => array(
+                'title' => $this->tr('Laravel Secret'),
+                'type' => 'password',
+                'description' => $this->tr('Shared secret for your Laravel backend HMAC signature verification.'),
+                'desc_tip' => true,
             ),
             'qr_image_url' => array(
                 'title' => $this->tr('QR Image'),
@@ -219,9 +255,9 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                 )
             ),
             'test_webhook' => array(
-                'title' => $this->tr('Test Webhook'),
+                'title' => $this->tr('Test Backend'),
                 'type' => 'button',
-                'description' => $this->tr('Send a test ping to the n8n webhook to verify connectivity.'),
+                'description' => $this->tr('Send a test ping to the selected backend to verify connectivity.'),
                 'desc_tip' => true,
                 'custom_attributes' => array(
                     'onclick' => 'san8n_test_webhook(); return false;'
@@ -430,10 +466,24 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
         $wc = is_callable('WC') ? call_user_func('WC') : null;
         if ($wc && isset($wc->session) && method_exists($wc->session, 'get')) {
             if (!$wc->session->get(SAN8N_SESSION_FLAG)) {
-                if (is_callable('wc_add_notice')) {
-                    call_user_func('wc_add_notice', (is_callable('__') ? call_user_func('__', 'Payment session expired. Please verify payment again.', 'scanandpay-n8n') : 'Payment session expired. Please verify payment again.'), 'error');
+                // Fallback: try transient by session token
+                $raw_tok = isset($_POST['san8n_session_token']) ? $_POST['san8n_session_token'] : '';
+                $session_token = is_callable('sanitize_text_field') ? call_user_func('sanitize_text_field', $raw_tok) : (string) $raw_tok;
+                $transient_key = 'san8n_tok_' . hash('sha256', (string) $session_token);
+                $t = is_callable('get_transient') ? call_user_func('get_transient', $transient_key) : false;
+                if (is_array($t) && !empty($t['approved'])) {
+                    // Restore session state from transient
+                    if (method_exists($wc->session, 'set')) {
+                        $wc->session->set(SAN8N_SESSION_FLAG, true);
+                        $wc->session->set('san8n_attachment_id', isset($t['attachment_id']) ? $t['attachment_id'] : null);
+                        $wc->session->set('san8n_approved_amount', isset($t['approved_amount']) ? $t['approved_amount'] : null);
+                    }
+                } else {
+                    if (is_callable('wc_add_notice')) {
+                        call_user_func('wc_add_notice', (is_callable('__') ? call_user_func('__', 'Payment session expired. Please verify payment again.', 'scanandpay-n8n') : 'Payment session expired. Please verify payment again.'), 'error');
+                    }
+                    return false;
                 }
-                return false;
             }
         }
 
@@ -454,10 +504,23 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
         $wc = is_callable('WC') ? call_user_func('WC') : null;
         if ($wc && isset($wc->session) && method_exists($wc->session, 'get')) {
             if (!$wc->session->get(SAN8N_SESSION_FLAG)) {
-                return array(
-                    'result' => 'fail',
-                    'messages' => $this->tr('Payment not verified.')
-                );
+                // Fallback: try transient by session token
+                $raw_tok = isset($_POST['san8n_session_token']) ? $_POST['san8n_session_token'] : '';
+                $session_token = is_callable('sanitize_text_field') ? call_user_func('sanitize_text_field', $raw_tok) : (string) $raw_tok;
+                $transient_key = 'san8n_tok_' . hash('sha256', (string) $session_token);
+                $t = is_callable('get_transient') ? call_user_func('get_transient', $transient_key) : false;
+                if (is_array($t) && !empty($t['approved'])) {
+                    if (method_exists($wc->session, 'set')) {
+                        $wc->session->set(SAN8N_SESSION_FLAG, true);
+                        $wc->session->set('san8n_attachment_id', isset($t['attachment_id']) ? $t['attachment_id'] : null);
+                        $wc->session->set('san8n_approved_amount', isset($t['approved_amount']) ? $t['approved_amount'] : null);
+                    }
+                } else {
+                    return array(
+                        'result' => 'fail',
+                        'messages' => $this->tr('Payment not verified.')
+                    );
+                }
             }
         }
 
@@ -470,6 +533,16 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
         if ($wc && isset($wc->session) && method_exists($wc->session, 'get')) {
             $attachment_id = $wc->session->get('san8n_attachment_id');
             $approved_amount = $wc->session->get('san8n_approved_amount');
+        }
+        // If reference_id is missing, attempt to pull from transient as a fallback
+        if (empty($reference_id)) {
+            $raw_tok = isset($_POST['san8n_session_token']) ? $_POST['san8n_session_token'] : '';
+            $session_token = is_callable('sanitize_text_field') ? call_user_func('sanitize_text_field', $raw_tok) : (string) $raw_tok;
+            $transient_key = 'san8n_tok_' . hash('sha256', (string) $session_token);
+            $t = is_callable('get_transient') ? call_user_func('get_transient', $transient_key) : false;
+            if (is_array($t) && isset($t['reference_id'])) {
+                $reference_id = (string) $t['reference_id'];
+            }
         }
 
         // Save order meta
@@ -506,6 +579,16 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
             $wc->session->set(SAN8N_SESSION_FLAG, false);
             $wc->session->set('san8n_attachment_id', null);
             $wc->session->set('san8n_approved_amount', null);
+        }
+
+        // Clear approval transient tied to session token
+        $raw_tok = isset($_POST['san8n_session_token']) ? $_POST['san8n_session_token'] : '';
+        $session_token = is_callable('sanitize_text_field') ? call_user_func('sanitize_text_field', $raw_tok) : (string) $raw_tok;
+        if (!empty($session_token)) {
+            $transient_key = 'san8n_tok_' . hash('sha256', (string) $session_token);
+            if (is_callable('delete_transient')) {
+                call_user_func('delete_transient', $transient_key);
+            }
         }
 
         // Log success

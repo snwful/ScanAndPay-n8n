@@ -440,11 +440,27 @@ class SAN8N_Admin {
         }
 
         $settings = is_callable('get_option') ? call_user_func('get_option', SAN8N_OPTIONS_KEY, array()) : array();
-        $n8n_url = isset($settings['n8n_webhook_url']) ? (string) $settings['n8n_webhook_url'] : '';
-        $shared_secret = isset($settings['shared_secret']) ? (string) $settings['shared_secret'] : '';
+        $backend = isset($settings['verifier_backend']) ? (string) $settings['verifier_backend'] : 'n8n';
 
-        if (empty($n8n_url) || empty($shared_secret)) {
-            $msg = is_callable('__') ? call_user_func('__', 'Please configure webhook URL and secret first.', 'scanandpay-n8n') : 'Please configure webhook URL and secret first.';
+        // Determine URL and secret based on backend
+        if ($backend === 'laravel') {
+            $url = isset($settings['laravel_verify_url']) ? (string) $settings['laravel_verify_url'] : '';
+            $secret = isset($settings['laravel_secret']) ? (string) $settings['laravel_secret'] : '';
+        } else {
+            $url = isset($settings['n8n_webhook_url']) ? (string) $settings['n8n_webhook_url'] : '';
+            $secret = isset($settings['shared_secret']) ? (string) $settings['shared_secret'] : '';
+        }
+
+        if (empty($url) || empty($secret)) {
+            $msg = is_callable('__') ? call_user_func('__', 'Please configure backend URL and secret first.', 'scanandpay-n8n') : 'Please configure backend URL and secret first.';
+            if (is_callable('wp_die')) { call_user_func('wp_die', json_encode(array('success' => false, 'message' => $msg))); }
+            return;
+        }
+
+        // Scheme must be HTTPS
+        $scheme = function_exists('parse_url') ? parse_url($url, PHP_URL_SCHEME) : '';
+        if (strtolower((string) $scheme) !== 'https') {
+            $msg = is_callable('__') ? call_user_func('__', 'Backend URL must use HTTPS.', 'scanandpay-n8n') : 'Backend URL must use HTTPS.';
             if (is_callable('wp_die')) { call_user_func('wp_die', json_encode(array('success' => false, 'message' => $msg))); }
             return;
         }
@@ -454,22 +470,24 @@ class SAN8N_Admin {
         $test_payload = (is_callable('wp_json_encode') ? call_user_func('wp_json_encode', array(
             'type' => 'ping',
             'timestamp' => $timestamp,
-            'source' => 'scanandpay-n8n'
+            'source' => 'scanandpay-n8n',
+            'backend' => $backend
         )) : json_encode(array(
             'type' => 'ping',
             'timestamp' => $timestamp,
-            'source' => 'scanandpay-n8n'
+            'source' => 'scanandpay-n8n',
+            'backend' => $backend
         )));
-        
+
         $body_hash = hash('sha256', $test_payload);
         $signature_base = $timestamp . "\n" . $body_hash;
-        $signature = hash_hmac('sha256', $signature_base, $shared_secret);
+        $signature = hash_hmac('sha256', $signature_base, $secret);
 
         $start_time = microtime(true);
-        
+
         $response = null;
         if (is_callable('wp_remote_post')) {
-            $response = call_user_func('wp_remote_post', $n8n_url, array(
+            $response = call_user_func('wp_remote_post', $url, array(
                 'timeout' => 5,
                 'headers' => array(
                     'Content-Type' => 'application/json',
@@ -492,13 +510,13 @@ class SAN8N_Admin {
         }
 
         $response_code = is_callable('wp_remote_retrieve_response_code') ? call_user_func('wp_remote_retrieve_response_code', $response) : 0;
-        
+
         if ($response_code >= 200 && $response_code < 300) {
-            $msg = is_callable('__') ? call_user_func('__', 'Webhook test successful! Latency: %dms', 'scanandpay-n8n') : 'Webhook test successful! Latency: %dms';
+            $msg = is_callable('__') ? call_user_func('__', 'Backend test successful! Latency: %dms', 'scanandpay-n8n') : 'Backend test successful! Latency: %dms';
             if (is_callable('wp_die')) { call_user_func('wp_die', json_encode(array('success' => true, 'message' => sprintf($msg, $latency), 'latency' => $latency))); }
             return;
         } else {
-            $msg = is_callable('__') ? call_user_func('__', 'Webhook returned status code: %d', 'scanandpay-n8n') : 'Webhook returned status code: %d';
+            $msg = is_callable('__') ? call_user_func('__', 'Backend returned status code: %d', 'scanandpay-n8n') : 'Backend returned status code: %d';
             if (is_callable('wp_die')) { call_user_func('wp_die', json_encode(array('success' => false, 'message' => sprintf($msg, $response_code)))); }
             return;
         }

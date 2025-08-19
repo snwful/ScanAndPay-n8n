@@ -167,65 +167,17 @@ class SAN8N_REST_API {
             $session_token = is_callable('sanitize_text_field') ? call_user_func('sanitize_text_field', $session_token_raw) : (is_string($session_token_raw) ? $session_token_raw : '');
 
             $settings = is_callable('get_option') ? call_user_func('get_option', SAN8N_OPTIONS_KEY, array()) : array();
-            $n8n_url_raw = isset($settings['n8n_webhook_url']) ? $settings['n8n_webhook_url'] : '';
-            $n8n_url = is_callable('esc_url_raw') ? call_user_func('esc_url_raw', $n8n_url_raw) : $n8n_url_raw;
-            $shared_secret = isset($settings['shared_secret']) ? $settings['shared_secret'] : '';
-            $scheme = function_exists('parse_url') ? parse_url($n8n_url, PHP_URL_SCHEME) : '';
-            $use_n8n = $n8n_url && strtolower((string) $scheme) === 'https';
 
             $attachment_path = is_callable('get_attached_file') ? call_user_func('get_attached_file', $attachment_id) : '';
             $this->strip_exif_data($attachment_path);
 
-            $boundary = is_callable('wp_generate_password') ? call_user_func('wp_generate_password', 24, false) : substr(hash('sha256', uniqid('', true)), 0, 24);
-            $body = $this->build_multipart_body($boundary, array(
-                'slip_image' => array(
-                    'filename' => basename($attachment_path),
-                    'content' => @file_get_contents($attachment_path),
-                    'type' => function_exists('mime_content_type') ? mime_content_type($attachment_path) : 'image/jpeg'
-                ),
-                'order' => (is_callable('wp_json_encode') ? call_user_func('wp_json_encode', array(
-                    'id' => $order_id,
-                    'total' => $order_total,
-                    'currency' => (is_callable('get_woocommerce_currency') ? call_user_func('get_woocommerce_currency') : 'THB')
-                )) : json_encode(array(
-                    'id' => $order_id,
-                    'total' => $order_total,
-                    'currency' => 'THB'
-                ))),
-                'session_token' => $session_token
-            ));
-
-            $timestamp = time();
-            $body_hash = hash('sha256', $body);
-            $signature = hash_hmac('sha256', $timestamp . "\n" . $body_hash, $shared_secret);
-
-            // Default to rejected to avoid any pending state in checkout-only flow
+            // Use verifier factory to support dynamic backend selection (n8n or Laravel)
+            $verifier = class_exists('SAN8N_Verifier_Factory') ? SAN8N_Verifier_Factory::make($settings) : null;
             $response_data = array('status' => 'rejected', 'reason' => 'verifier_unreachable', 'message' => 'verifier_unreachable', 'approved_amount' => 0.0);
-            if ($use_n8n && is_callable('wp_remote_post')) {
-                $response = call_user_func('wp_remote_post', $n8n_url, array(
-                    'timeout' => 8,
-                    'sslverify' => true,
-                    'headers' => array(
-                        'Content-Type' => 'multipart/form-data; boundary=' . $boundary,
-                        'X-PromptPay-Timestamp' => $timestamp,
-                        'X-PromptPay-Signature' => $signature,
-                        'X-PromptPay-Version' => '1.0',
-                        'X-Correlation-ID' => $correlation_id
-                    ),
-                    'body' => $body
-                ));
-
-                $is_error = is_callable('is_wp_error') ? call_user_func('is_wp_error', $response) : false;
-                if ($is_error) {
-                    // Treat as rejected to enforce immediate decision at checkout
-                    $response_data['reason'] = 'verifier_unreachable';
-                    $response_data['message'] = 'verifier_unreachable';
-                } else {
-                    $resp_body = is_callable('wp_remote_retrieve_body') ? call_user_func('wp_remote_retrieve_body', $response) : '';
-                    $tmp = json_decode($resp_body, true);
-                    if (is_array($tmp)) {
-                        $response_data = (is_callable('wp_parse_args') ? call_user_func('wp_parse_args', $tmp, $response_data) : array_merge($response_data, $tmp));
-                    }
+            if ($verifier) {
+                $tmp = $verifier->verify($attachment_path, $order_id, $order_total, $session_token, $correlation_id);
+                if (is_array($tmp)) {
+                    $response_data = (is_callable('wp_parse_args') ? call_user_func('wp_parse_args', $tmp, $response_data) : array_merge($response_data, $tmp));
                 }
             }
 
@@ -262,6 +214,18 @@ class SAN8N_REST_API {
                     'approved_amount' => $approved_amount,
                     'correlation_id' => $correlation_id
                 );
+                // Persist approval tied to the session token as a fallback when WC session isn't available
+                $ttl = (defined('MINUTE_IN_SECONDS') ? MINUTE_IN_SECONDS : 60) * 10; // 10 minutes
+                $transient_key = 'san8n_tok_' . hash('sha256', (string) $session_token);
+                if (is_callable('set_transient')) {
+                    call_user_func('set_transient', $transient_key, array(
+                        'approved' => true,
+                        'attachment_id' => $attachment_id,
+                        'approved_amount' => $approved_amount,
+                        'reference_id' => $reference_id,
+                    ), $ttl);
+                }
+
                 return class_exists('WP_REST_Response') ? new WP_REST_Response($resp_payload, 200) : $resp_payload;
             }
 

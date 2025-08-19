@@ -60,6 +60,7 @@ function san8n_init_gateway() {
 
     // Include required files
     require_once SAN8N_PLUGIN_DIR . 'includes/class-san8n-logger.php';
+    require_once SAN8N_PLUGIN_DIR . 'includes/class-san8n-verifier.php';
     require_once SAN8N_PLUGIN_DIR . 'includes/class-san8n-gateway.php';
     require_once SAN8N_PLUGIN_DIR . 'includes/class-san8n-rest-api.php';
     require_once SAN8N_PLUGIN_DIR . 'includes/class-san8n-admin.php';

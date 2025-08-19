@@ -20,10 +20,10 @@ Rules and map for agents (Codex/Windsurf/Cursor) to work safely on this WooComme
 - includes/class-san8n-helper.php (shared helpers)
 
 ## Current Mission
-- Use a static QR placeholder image configured via WordPress Media Library (`qr_image_url` setting). If empty, fall back to `assets/images/qr-placeholder.svg`.
-- Ensure both Classic and Blocks checkout display the placeholder image consistently and responsively.
-- Slip verification is handled via REST `POST /wp-json/wc-scanandpay/v1/verify-slip`, which forwards to an external service. Backend choice (n8n vs Laravel) is pending; currently n8n is supported.
-- Maintain security: nonces, file type/size validation, EXIF stripping, capability checks.
+Use a static QR placeholder image configured via WordPress Media Library (`qr_image_url` setting). If empty, fall back to `assets/images/qr-placeholder.svg`.
+Ensure both Classic and Blocks checkout display the placeholder image consistently and responsively.
+Slip verification is handled via REST `POST /wp-json/wc-scanandpay/v1/verify-slip`, which forwards to an external service. Backend is selectable in settings (n8n default, Laravel optional) using the same contract.
+Maintain security: nonces, file type/size validation, EXIF stripping, capability checks.
 
 ## API (internal → verification backend)
 POST /wp-json/wc-scanandpay/v1/verify-slip (multipart)
@@ -35,6 +35,7 @@ Backend (n8n or Laravel TBD) → { status: approved|rejected, reference_id?, app
 - Append readme.txt changelog with date + bullets
 - Update plan.md in each PR/iteration
 - PHPCS clean; WP/WC compatibility intact
+- Standardize filters: `san8n_verifier_timeout`, `san8n_verifier_retries`
 
 ## Do / Don’t
 - Do use the `qr_image_url` setting and Media Library picker for the QR placeholder.
@@ -55,10 +56,8 @@ Backend (n8n or Laravel TBD) → { status: approved|rejected, reference_id?, app
 - Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.
 - Additionally: Add progress UI and retry logic to improve user feedback.
 
- 
-
 ## Backend Options (Adapter Pattern)
-- Current: n8n webhook (email/IMAP-based verification).
+- Default: n8n webhook (email/IMAP-based verification).
 - Optional: Laravel service with the same contract.
 - Standard response schema expected from any adapter:
   - `{ status: approved|rejected, message?, approved_amount?, reference_id? }`
@@ -68,3 +67,18 @@ Backend (n8n or Laravel TBD) → { status: approved|rejected, reference_id?, app
 2) Adapter wrapper in REST handler to call verifier (n8n now; Laravel optional) uniformly.
 3) Security hardening: HMAC, HTTPS with SSL verification, timeouts/retries; minimal payload.
 4) Tests and docs: unit/integration for REST path; manual QA on Classic/Blocks; update docs.
+
+## Short-term Tasks (Phases 1–3)
+
+### Phase 1 — Settings QA
+- [ ] Toggle backend shows correct fields; button “Test Backend” relabels and moves next to active URL field
+- [ ] Test AJAX returns clear success/error without exposing URL/secret; client validates HTTPS/required URL
+
+### Phase 2 — Checkout Regression
+- [ ] Classic and Blocks render identical static QR; no console errors
+- [ ] Upload slip → call `verify-slip` → receives approved/rejected; order updated accordingly
+- [ ] Test both backends (n8n default; Laravel optional/mock)
+
+### Phase 3 — Tests
+- [ ] Unit: factory selects adapter; response mapping conforms `{ status, message?, approved_amount?, reference_id? }`
+- [ ] Integration: REST happy-path and error/timeout/retry; filters `san8n_verifier_timeout`/`san8n_verifier_retries` honored

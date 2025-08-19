@@ -4,7 +4,7 @@ Static QR checkout for WooCommerce with inline slip verification.
 
 ## Overview
 - Displays a static QR placeholder image configured via the WordPress Media Library (with a bundled SVG fallback).
-- Customers upload a payment slip; the plugin verifies it via a backend service (n8n supported; Laravel planned) and updates the order on approval.
+- Customers upload a payment slip; the plugin verifies it via a selectable backend service (n8n default; Laravel optional) using a unified contract, then updates the order on approval.
 
 ## Requirements
 - WordPress 6.0+ and PHP 8.0+
@@ -16,7 +16,7 @@ Static QR checkout for WooCommerce with inline slip verification.
 
 ## Configuration
 - Select a QR placeholder image via the Media Library (or use the default SVG).
-- Set your verification backend webhook URL and shared secret (n8n supported; Laravel planned).
+- Set your verification backend webhook URL and shared secret (selectable: n8n or Laravel).
 
 ## Usage
 - Classic and Blocks checkout both render the configured static QR placeholder image.
@@ -33,13 +33,12 @@ See `readme.txt` for changelog and detailed instructions.
 ## Roadmap
 
 - Short term: Use n8n IMAP/email alert parsing to verify incoming funds before relying on slips; document the flow and security controls.
-- Medium term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both backends.
+- Medium term: Maintain optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both backends.
 - Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.
 
 ## Verification Backends (Adapter)
 
-- Supported today: n8n (webhook)
-- Planned: Laravel service with the same contract
+- Supported: n8n (default) and Laravel (optional) with the same contract
 - Unified response contract expected from any backend:
 
 ```json
@@ -56,6 +55,26 @@ See `readme.txt` for changelog and detailed instructions.
 - Progress UI and retry hints on verification.
 - Optional anti-reuse via slip hash; optional support for `webp/jfif` with strict validation.
 - Laravel adapter as an alternative backend using the same contract.
+
+## Developer Filters
+
+- `san8n_verifier_timeout` — Adjust verifier HTTP timeout (seconds). Args: (int $timeout, string $backend)
+- `san8n_verifier_retries` — Adjust verifier retry attempts. Args: (int $retries, string $backend)
+
+## Short-term Tasks (Phases 1–3)
+
+### Phase 1 — Settings QA
+- [ ] Toggle backend shows correct fields; “Test Backend” relabels and moves next to active URL field
+- [ ] Test AJAX returns clear success/error without exposing URL/secret; client validates HTTPS/required URL
+
+### Phase 2 — Checkout Regression
+- [ ] Classic and Blocks render identical static QR; no console errors
+- [ ] Upload slip → call `verify-slip` → receives approved/rejected; order updated accordingly
+- [ ] Test both backends (n8n default; Laravel optional/mock)
+
+### Phase 3 — Tests
+- [ ] Unit: factory selects adapter; response mapping conforms `{ status, message?, approved_amount?, reference_id? }`
+- [ ] Integration: REST happy-path and error/timeout/retry; filters `san8n_verifier_timeout`/`san8n_verifier_retries` honored
 
 ## Open Tasks
 

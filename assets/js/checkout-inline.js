@@ -124,6 +124,7 @@
                 data: formData,
                 processData: false,
                 contentType: false,
+                xhrFields: { withCredentials: true },
                 headers: {
                     'X-WP-Nonce': san8n_params.nonce
                 },

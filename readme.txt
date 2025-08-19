@@ -31,7 +31,7 @@ Scan & Pay (n8n) is a WooCommerce payment gateway plugin that enables customers 
 * WordPress 6.0 or higher
 * WooCommerce 7.0 or higher
 * PHP 8.0 or higher
-* Verification backend service (n8n currently supported; Laravel planned)
+* Verification backend service (n8n or Laravel)
 * GD or Imagick PHP extension for image processing
 
 == Installation ==
@@ -56,7 +56,7 @@ Scan & Pay (n8n) is a WooCommerce payment gateway plugin that enables customers 
 
 = Verification Backend =
 
-* **Webhook URL** - Your verification service endpoint (n8n supported; Laravel planned)
+* **Webhook URL** - Your verification service endpoint (n8n or Laravel)
 * **Webhook Secret** - Shared secret for HMAC signing
 * **Amount Tolerance** - Acceptable payment difference (THB)
 * **Time Window** - Payment verification time limit (minutes)
@@ -106,7 +106,8 @@ Scan & Pay (n8n) is a WooCommerce payment gateway plugin that enables customers 
 * `san8n_payment_approved` - When payment is approved
 * `san8n_payment_rejected` - When payment is rejected
 * `san8n_file_upload_args` - Modify file upload parameters
-* `san8n_webhook_timeout` - Adjust webhook timeout
+* `san8n_verifier_timeout` - Adjust verifier HTTP timeout (seconds). Args: (int $timeout, string $backend)
+* `san8n_verifier_retries` - Adjust verifier retry attempts. Args: (int $retries, string $backend)
 
 = REST API Endpoints =
 
@@ -123,8 +124,7 @@ Scan & Pay (n8n) is a WooCommerce payment gateway plugin that enables customers 
 
 == Verification Backends (Adapter) ==
 
-Supported today: n8n (webhook)
-Planned: Laravel service with the same contract
+Supported: n8n and Laravel (optional) using the same contract
 
 Unified response contract expected from any backend:
 
@@ -143,10 +143,11 @@ Unified response contract expected from any backend:
 - Optional anti-reuse via slip hash; optional support for `webp/jfif` with strict validation
 - Laravel adapter as an alternative backend using the same contract
 
-== Laravel Adapter Quickstart (Planned) ==
+== Laravel Adapter Quickstart ==
 
-- Endpoint: `POST /api/verify` with HMAC-signed JSON body matching the contract above
-- Timeouts/retries configurable via WordPress filters (to be documented)
+- Endpoint: `POST /api/verify` using multipart/form-data identical to n8n (fields: slip_image, order JSON, session_token)
+- Headers: `X-PromptPay-*` (Timestamp, Signature, Version) and `X-Correlation-ID` with HMAC-SHA256 signature
+- Timeouts/retries configurable via WordPress filters: `san8n_verifier_timeout`, `san8n_verifier_retries`
 
 == Troubleshooting ==
 

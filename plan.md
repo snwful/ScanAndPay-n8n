@@ -32,6 +32,11 @@ Finalize docs and execute a phased roadmap:
 - Mid: implement Laravel adapter option and shared response schema; expose a settings toggle.
 - Long: design slipless unique-amount flow, idempotent webhook, manual review queue; plan migration steps.
 
+## Open question for todo-5 (Copy polish)
+Do you want to:
+Keep current branding (“Scan & Pay (n8n)”) and just ensure backend text is neutral, or
+Generalize gateway titles/descriptions to be backend-agnostic (e.g., “Scan & Pay — Slip Verification”)?
+
 ## Step-by-step Execution Plan
 
 Sprint 1 — Checkout Verification Finalize
@@ -41,8 +46,8 @@ Sprint 1 — Checkout Verification Finalize
 - [x] Security baseline: HMAC signing, HTTPS with SSL verification, sensible timeout (no retries at checkout); strict file validation.
 
 Sprint 2 — Laravel Adapter + Tests
-- [ ] Settings toggle to choose backend (n8n|Laravel) and configure endpoint/secret.
-- [ ] Implement Laravel adapter using same contract; add filters for timeout/retry.
+- [x] Settings toggle to choose backend (n8n|Laravel) and configure endpoint/secret.
+- [x] Implement Laravel adapter using same contract; add filters for timeout/retry.
 - [ ] Tests: unit/integration for REST adapter; manual regression on Classic/Blocks.
 
 Sprint 3 — Optional Enhancements

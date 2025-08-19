@@ -11,6 +11,9 @@ Settings page:
 
 - Legacy PromptPay-related fields and validators are removed.
 
+- Backend toggle is present (n8n default; Laravel optional). Switching backends shows the correct URL/Secret fields, and the “Test Backend” button relabels/moves next to the active backend field.
+- Test backend AJAX returns clear success or error messages without exposing secrets or URLs; client enforces HTTPS for endpoint input.
+
 Checkout page:
 
 - A static QR placeholder image is displayed in both Classic and Blocks checkout. If `qr_image_url` is unset, the fallback `assets/images/qr-placeholder.svg` is used.
@@ -25,7 +28,9 @@ REST API:
 
 POST requests to `/wp-json/wc-scanandpay/v1/verify-slip` accept `order_id`, `order_total`, `slip_image` and `session_token` (no `cart_total`/`cart_hash`).
 
-Upon receiving a mock “approved” response, the order status changes to “processing” or “completed”, meta fields are updated, and a success message is returned. A mock “rejected” response should result in an appropriate error message.
+- Upon receiving a mock “approved” response, the order status changes to “processing” or “completed”, meta fields are updated, and a success message is returned. A mock “rejected” response should result in an appropriate error message.
+
+- Filters respected for outbound requests: `san8n_verifier_timeout` and `san8n_verifier_retries` (args include backend id: `n8n` or `laravel`).
 
 Code Quality
 
@@ -71,7 +76,7 @@ Planned Checks (Checkout-only)
   - On `rejected`, clear approval flag and show translated error; Place order remains disabled.
 - Backend Adapter:
   - REST handler calls n8n (and optionally Laravel later) using unified contract `{ status, message?, approved_amount?, reference_id? }`.
-  - HMAC signing enforced; HTTPS/SSL verification enabled; timeouts/retries reasonable.
+  - HMAC signing enforced; HTTPS/SSL verification enabled; timeouts/retries reasonable via `san8n_verifier_timeout`/`san8n_verifier_retries`.
 - Classic/Blocks Parity:
   - Both checkouts render static QR placeholder and use the same verify flow without console errors.
 - Anti-reuse & File Types (optional):

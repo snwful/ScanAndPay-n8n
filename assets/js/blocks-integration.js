@@ -24,6 +24,14 @@ const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
     const [referenceId, setReferenceId] = useState('');
     const [approvedAmount, setApprovedAmount] = useState(0);
     const [showExpressButton, setShowExpressButton] = useState(false);
+    const [sessionToken] = useState(() => {
+        try {
+            if (window.crypto && window.crypto.randomUUID) {
+                return window.crypto.randomUUID();
+            }
+        } catch (e) {}
+        return (Date.now().toString(36) + Math.random().toString(36).slice(2));
+    });
 
     // Get cart total
     const cartTotal = window.wc.wcBlocksData.getSetting('cartTotals', {}).total_price / 100;
@@ -49,6 +57,7 @@ const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
                         san8n_approval_status: verificationStatus,
                         san8n_reference_id: referenceId,
                         san8n_approved_amount: approvedAmount,
+                        san8n_session_token: sessionToken,
                     },
                 },
             };
@@ -121,7 +130,7 @@ const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
 
         const formData = new FormData();
         formData.append('slip_image', slipFile);
-        formData.append('session_token', Date.now().toString());
+        formData.append('session_token', sessionToken);
         formData.append('order_id', 0);
         formData.append('order_total', cartTotal);
 
@@ -131,6 +140,7 @@ const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
                 headers: {
                     'X-WP-Nonce': settings.nonce,
                 },
+                credentials: 'same-origin',
                 body: formData,
             });
 
@@ -148,7 +158,7 @@ const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
         } finally {
             setIsVerifying(false);
         }
-    }, [slipFile, cartTotal]);
+    }, [slipFile, cartTotal, sessionToken]);
 
     const handleVerificationResponse = (response) => {
         setVerificationStatus(response.status);

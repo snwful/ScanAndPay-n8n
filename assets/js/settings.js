@@ -10,14 +10,28 @@
             this.bindEvents();
             this.initTooltips();
             this.initMediaPicker();
+            this.updateBackendVisibility();
+            this.renderOrMoveTestUI();
         },
 
         bindEvents: function() {
-            // Test webhook button
-            $(document).on('click', '#san8n-test-webhook', this.testWebhook);
+            // Test webhook button (fallback our own button)
+            $(document).on('click', '#san8n-test-webhook', function(e){ SAN8N_Settings.testWebhook.call(this, e); });
+            // Also bind if WC renders a button with field key id
+            $(document).on('click', '#woocommerce_scanandpay_n8n_test_webhook', function(e){ SAN8N_Settings.testWebhook.call(this, e); });
+            // Support PHP-rendered button via onclick attribute
+            window.san8n_test_webhook = () => {
+                const el = document.getElementById('woocommerce_scanandpay_n8n_test_webhook') || document.getElementById('san8n-test-webhook');
+                return SAN8N_Settings.testWebhook.call(el || window, new $.Event('click'));
+            };
             
             // Mode change handlers
             $(document).on('change', '#woocommerce_scanandpay_n8n_blocks_mode', this.handleBlocksModeChange);
+            // Backend toggle change
+            $(document).on('change', '#woocommerce_scanandpay_n8n_verifier_backend', () => {
+                this.updateBackendVisibility();
+                this.renderOrMoveTestUI();
+            });
             
             // Show/hide advanced settings
             $(document).on('click', '.san8n-toggle-advanced', this.toggleAdvancedSettings);
@@ -46,14 +60,18 @@
             
             const $button = $(this);
             const $result = $('#san8n-test-result');
-            const webhookUrl = $('#woocommerce_scanandpay_n8n_webhook_url').val();
-            const webhookSecret = $('#woocommerce_scanandpay_n8n_webhook_secret').val();
+            const backend = SAN8N_Settings.getBackend();
+            const fields = SAN8N_Settings.getBackendFieldSelectors(backend);
+            const $urlInput = SAN8N_Settings.selectFirstExisting(fields.url);
+            const $secretInput = SAN8N_Settings.selectFirstExisting(fields.secret);
+            const webhookUrl = $urlInput.val();
+            const webhookSecret = $secretInput.val();
             
             if (!webhookUrl) {
                 $result
                     .removeClass('san8n-test-success')
                     .addClass('san8n-test-error')
-                    .text('Please enter a webhook URL')
+                    .text('Please enter a backend URL')
                     .show();
                 return;
             }
@@ -62,37 +80,55 @@
                 $result
                     .removeClass('san8n-test-success')
                     .addClass('san8n-test-error')
-                    .text('Please enter a webhook secret')
+                    .text('Please enter a backend secret')
+                    .show();
+                return;
+            }
+            // Require HTTPS
+            try {
+                const u = new URL(webhookUrl);
+                if (u.protocol !== 'https:') {
+                    $result
+                        .removeClass('san8n-test-success')
+                        .addClass('san8n-test-error')
+                        .text('Backend URL must use HTTPS')
+                        .show();
+                    return;
+                }
+            } catch (err) {
+                $result
+                    .removeClass('san8n-test-success')
+                    .addClass('san8n-test-error')
+                    .text('Invalid URL')
                     .show();
                 return;
             }
             
             // Show loading state
-            $button.prop('disabled', true).text('Testing...');
+            $button.prop('disabled', true).text(san8n_settings?.i18n?.testing || 'Testing...');
             $result.hide();
             
             // Make test request
             $.ajax({
-                url: ajaxurl,
+                url: san8n_settings?.ajax_url || ajaxurl,
                 type: 'POST',
                 data: {
                     action: 'san8n_test_webhook',
-                    nonce: san8n_settings.nonce,
-                    webhook_url: webhookUrl,
-                    webhook_secret: webhookSecret
+                    nonce: san8n_settings?.nonce
                 },
-                success: function(response) {
+                success: function(resp) {
+                    const response = SAN8N_Settings.parseResponse(resp);
                     if (response.success) {
                         $result
                             .removeClass('san8n-test-error')
                             .addClass('san8n-test-success')
-                            .html('✓ ' + response.data.message)
+                            .html('✓ ' + (response.message || response.data?.message || 'Success'))
                             .show();
                     } else {
                         $result
                             .removeClass('san8n-test-success')
                             .addClass('san8n-test-error')
-                            .html('✗ ' + (response.data.message || 'Test failed'))
+                            .html('✗ ' + (response.message || response.data?.message || san8n_settings?.i18n?.test_failed || 'Test failed'))
                             .show();
                     }
                 },
@@ -104,7 +140,7 @@
                         .show();
                 },
                 complete: function() {
-                    $button.prop('disabled', false).text('Test Webhook');
+                    $button.prop('disabled', false).text(SAN8N_Settings.getTestButtonLabel());
                 }
             });
         },
@@ -201,6 +237,107 @@
             } else {
                 $img.attr('src', '').hide();
             }
+        },
+
+        // Helpers for backend toggle
+        getBackend: function() {
+            return ($('#woocommerce_scanandpay_n8n_verifier_backend').val() || 'n8n').toLowerCase();
+        },
+
+        getBackendFieldSelectors: function(backend) {
+            if (backend === 'laravel') {
+                return {
+                    url: ['#woocommerce_scanandpay_n8n_laravel_verify_url'],
+                    secret: ['#woocommerce_scanandpay_n8n_laravel_secret']
+                };
+            }
+            // n8n
+            return {
+                // Support both historical and current IDs
+                url: ['#woocommerce_scanandpay_n8n_n8n_webhook_url', '#woocommerce_scanandpay_n8n_webhook_url'],
+                secret: ['#woocommerce_scanandpay_n8n_shared_secret', '#woocommerce_scanandpay_n8n_webhook_secret', '#woocommerce_scanandpay_n8n_n8n_webhook_secret']
+            };
+        },
+
+        selectFirstExisting: function(selectors) {
+            const arr = Array.isArray(selectors) ? selectors : [selectors];
+            for (let i = 0; i < arr.length; i++) {
+                const $el = $(arr[i]);
+                if ($el.length) return $el.first();
+            }
+            return $();
+        },
+
+        updateBackendVisibility: function() {
+            const backend = this.getBackend();
+            const $n8nRows = $(
+                '#woocommerce_scanandpay_n8n_n8n_webhook_url, #woocommerce_scanandpay_n8n_webhook_url, ' +
+                '#woocommerce_scanandpay_n8n_shared_secret, #woocommerce_scanandpay_n8n_webhook_secret, #woocommerce_scanandpay_n8n_n8n_webhook_secret'
+            ).closest('tr');
+            const $laravelRows = $('#woocommerce_scanandpay_n8n_laravel_verify_url, #woocommerce_scanandpay_n8n_laravel_secret').closest('tr');
+            if (backend === 'laravel') {
+                $n8nRows.hide();
+                $laravelRows.show();
+            } else {
+                $laravelRows.hide();
+                $n8nRows.show();
+            }
+        },
+
+        getTestButtonLabel: function() {
+            return 'Test Backend';
+        },
+
+        ensureTestUI: function() {
+            const $wcBtn = $('#woocommerce_scanandpay_n8n_test_webhook');
+            if (!$wcBtn.length && !$('#san8n-test-webhook').length) {
+                // Create a fallback button if WC didn't render one
+                const html = '<button type="button" id="san8n-test-webhook" class="button">' + this.getTestButtonLabel() + '</button>' +
+                             '<div id="san8n-test-result" class="san8n-test-result" style="display:none;"></div>';
+                $('#woocommerce_scanandpay_n8n_enabled').closest('tr').after('<tr><th></th><td>' + html + '</td></tr>');
+            }
+            // Ensure result container exists after whichever button we have
+            const $btn = $('#woocommerce_scanandpay_n8n_test_webhook').length ? $('#woocommerce_scanandpay_n8n_test_webhook') : $('#san8n-test-webhook');
+            if ($btn.length && !$('#san8n-test-result').length) {
+                $('<div id="san8n-test-result" class="san8n-test-result" style="display:none;"></div>').insertAfter($btn);
+            }
+        },
+
+        renderOrMoveTestUI: function() {
+            this.ensureTestUI();
+            const backend = this.getBackend();
+            const fields = this.getBackendFieldSelectors(backend);
+            const $anchor = this.selectFirstExisting(fields.url);
+            const $btn = $('#woocommerce_scanandpay_n8n_test_webhook').length ? $('#woocommerce_scanandpay_n8n_test_webhook') : $('#san8n-test-webhook');
+            const $res = $('#san8n-test-result');
+            if ($btn.length) {
+                $btn.text(this.getTestButtonLabel());
+            }
+            if ($anchor.length && $btn.length) {
+                // Move button and result next to the relevant URL field
+                $btn.detach();
+                $res.detach();
+                $anchor.after($btn);
+                $btn.after($res);
+            }
+        },
+
+        parseResponse: function(resp) {
+            try {
+                if (typeof resp === 'string') {
+                    return JSON.parse(resp);
+                }
+                // If WP returns {success: true, data: {...}}
+                if (resp && typeof resp === 'object' && 'success' in resp) {
+                    // If message nested in data, normalize
+                    if (!('message' in resp) && resp.data && typeof resp.data === 'object' && 'message' in resp.data) {
+                        return { success: !!resp.success, message: resp.data.message, data: resp.data };
+                    }
+                    return resp;
+                }
+            } catch (e) { /* noop */ }
+            // Fallback
+            return { success: false, message: 'Unexpected response' };
         }
     };
 
@@ -209,11 +346,6 @@
         // Only run on settings page
         if ($('#woocommerce_scanandpay_n8n_enabled').length) {
             SAN8N_Settings.init();
-            
-            // Add test button after webhook URL field
-            const testButton = '<button type="button" id="san8n-test-webhook" class="button">Test Webhook</button>' +
-                             '<div id="san8n-test-result" class="san8n-test-result" style="display:none;"></div>';
-            $('#woocommerce_scanandpay_n8n_webhook_url').after(testButton);
             
             // Group advanced settings
             const advancedFields = [
