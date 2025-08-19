@@ -132,6 +132,41 @@ Scan & Pay (n8n) is a WooCommerce payment gateway plugin that enables customers 
 * `SAN8N_SESSION_FLAG` - Session approval flag
 * `SAN8N_LOGGER_SOURCE` - Logger source identifier
 
+== Verification Backends (Adapter) ==
+
+Supported today: n8n (webhook)
+Planned: Laravel service with the same contract
+
+Unified response contract expected from any backend:
+
+```
+{
+  "status": "approved|pending|rejected",
+  "message": "optional",
+  "approved_amount": 1499.00,
+  "reference_id": "abc123",
+  "delay": 10
+}
+```
+
+If `status = pending`, `delay` (minutes) may be provided so WordPress can schedule a re-check.
+
+== Admin (SlipOK-inspired) — Roadmap ==
+
+- Order metabox: slip thumbnail, status badge, approved amount/reference, logs, and a “Re-verify” button
+- Order list column “Scan&Pay” (HPOS-safe) with concise status
+- AJAX `wp_ajax_san8n_verify_again` with nonce + capability checks; updates UI instantly
+- Scheduler: on `pending`, enqueue a single re-check via WP-Cron
+- Optional: auto-update order status (Processing/Completed) when approved
+- Anti-reuse (optional): store slip hash to prevent reuse across orders
+
+== Laravel Adapter Quickstart (Planned) ==
+
+- Endpoint: `POST /api/verify` with HMAC-signed JSON body matching the contract above
+- Poll: `GET /api/status/{reference_id}` for async status
+- Security: HTTPS only, SSL verification enabled, HMAC via shared secret configured in plugin settings
+- Timeouts/retries configurable via WordPress filters (to be documented)
+
 == Troubleshooting ==
 
 = Common Issues =

@@ -58,6 +58,32 @@ On the checkout page, the static QR image should display in both Classic and Blo
 
 Maintain backwards‑compatible hooks and filters where possible. If you remove an option, consider cleaning up its value on plugin activation or migration.
 
+7. Next Iteration — SlipOK-inspired Admin + Scheduler (Plan)
+
+- Admin Metabox (`includes/class-san8n-admin.php`):
+  - Show slip thumbnail, status badge, approved amount/reference, last checked time, and logs.
+  - Add a “Re-verify” button with nonce + capability checks.
+- Order List Column (HPOS-compatible):
+  - Add a “Scan&Pay” status column with concise badges.
+- Admin JS (`assets/js/admin.js`):
+  - Bind click to re-verify button → `wp_ajax_san8n_verify_again`.
+  - Update status/logs inline on success.
+- AJAX Endpoint:
+  - Add `wp_ajax_san8n_verify_again` handler that calls the verification backend (n8n for now) using `wp_remote_post()` over HTTPS with SSL verification.
+  - Update order meta: `_san8n_status`, `_san8n_status_message`, `_san8n_reference_id`, `_san8n_verification_log[]`, `_san8n_checked_at`.
+- Scheduler:
+  - Register action `san8n_verify_uploaded_slip`.
+  - If backend returns `pending` with `delay` (minutes), call `wp_schedule_single_event( time() + delay*60, 'san8n_verify_uploaded_slip', [$order_id] )`.
+- Backend Adapter (n8n/Laravel):
+  - Standardize response schema `{ status: approved|pending|rejected, message?, approved_amount?, reference_id?, delay? }`.
+  - Keep HMAC signing and HTTPS with SSL verification; configurable timeout/retry.
+- Anti-reuse & File Types:
+  - Optional: compute and store slip hash to prevent reuse across orders.
+  - Optional: add safe support for `webp/jfif` with strict server-side validation.
+- Tests:
+  - Unit/integration tests for AJAX, scheduler enqueue, and meta updates.
+  - Manual: verify metabox actions, list column, and pending→recheck flow.
+
 Notes / Roadmap (do not implement in this iteration):
 - Short term: Use n8n IMAP/email alert parsing to verify incoming funds before relying on slips; document the flow and security controls.
 - Medium term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both backends.

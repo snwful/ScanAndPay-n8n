@@ -15,6 +15,10 @@ Rules and map for agents (Codex/Windsurf/Cursor) to work safely on this WooComme
 - readme.txt (Changelog)
 - context.md / instructions.md / evaluation.md / plan.md
 
+## Additional Key Files
+- includes/class-san8n-admin.php (admin metabox, columns, and AJAX re-verify UI)
+- includes/class-san8n-helper.php (shared helpers)
+
 ## Current Mission
 - Use a static QR placeholder image configured via WordPress Media Library (`qr_image_url` setting). If empty, fall back to `assets/images/qr-placeholder.svg`.
 - Ensure both Classic and Blocks checkout display the placeholder image consistently and responsively.
@@ -50,3 +54,36 @@ Backend (n8n or Laravel TBD) → { status: approved|rejected, reference_id?, app
 - Mid term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both n8n and Laravel backends.
 - Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.
 - Additionally: Add progress UI, retry logic, and optional status polling to improve user feedback.
+
+## SlipOK-inspired Admin Patterns to Adopt Next
+- Re-verify button in Orders (supports HPOS)
+  - Add a button similar to `slipok-verify-again` that calls `wp_ajax_san8n_verify_again` with nonce.
+  - Backend: call current verifier (n8n for now, Laravel optional) via `wp_remote_post()` with SSL verify ON.
+  - Update order meta: `_san8n_status`, `_san8n_status_message`, `_san8n_verification_log[]`, `_san8n_reference_id`.
+- Metabox + Order list column
+  - Metabox shows slip thumbnail, status, approved amount/reference, logs, and a Re-verify button.
+  - Add an order list column “Scan&Pay” summarizing status; ensure HPOS-compatible hooks.
+- Pending → scheduled re-check
+  - If backend returns `status: pending` and optional `delay` (minutes), schedule: `wp_schedule_single_event( time() + delay*60, 'san8n_verify_uploaded_slip', [$order_id] )`.
+- Auto-update order status (optional setting)
+  - When approved, optionally move to Processing/Completed; expose setting in gateway/admin.
+- File types and anti-reuse
+  - Consider allowing `webp/jfif` in validation (server-side + client hints).
+  - Compute and store slip hash to prevent reuse across orders.
+- Security
+  - Use `wp_remote_post()` (not raw cURL). Enforce HTTPS and SSL verification.
+  - HMAC-sign payloads to external verifier; verify signatures on callbacks.
+
+## Backend Options (Adapter Pattern)
+- Current: n8n webhook (email/IMAP-based verification).
+- Optional: Laravel service with the same contract.
+- Standard response schema expected from any adapter:
+  - `{ status: approved|pending|rejected, message?, approved_amount?, reference_id?, delay? }`
+
+## Step-by-step (Implementation Order)
+1) Admin UI: metabox + column + AJAX re-verify, with nonces and caps.
+2) Adapter wrapper in REST handler to call verifier (n8n or Laravel) uniformly.
+3) Scheduler hook `san8n_verify_uploaded_slip` and re-dispatch on pending.
+4) Settings: toggle for auto-update order status; optional select backend (n8n/Laravel).
+5) Add logs and error surfaces in the order UI; mask PII.
+6) Optional: extend file types, slip hash anti-reuse, rate limits.

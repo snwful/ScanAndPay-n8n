@@ -15,3 +15,18 @@ Structure the feedback as bullet points or short paragraphs. Aim to be honest an
  - Short term: Use n8n IMAP/email alert parsing to verify incoming funds before relying on slips; document the flow and security controls.
  - Medium term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both backends.
  - Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.
+
+Additional Focus Areas (Upcoming Work)
+
+- Admin UI & UX:
+  - Evaluate clarity of the order metabox (status, reference, logs) and the “Re-verify” action.
+  - Confirm the HPOS-safe order list column communicates status succinctly.
+- Scheduler & Pending Flow:
+  - Verify that `pending` results schedule a single re-check and avoid duplicate jobs.
+  - Ensure results cancel further retries after approval/rejection.
+- Backend Adapter Decision:
+  - Compare n8n vs Laravel using the unified contract `{ status, message?, approved_amount?, reference_id?, delay? }`.
+  - Confirm HMAC signing, HTTPS, SSL verification, and reasonable timeouts/retries for both.
+- Security & Anti-reuse:
+  - Check slip hash policy (if enabled) prevents reuse across orders without false positives.
+  - Review nonce/capability checks for `wp_ajax_san8n_verify_again` and PII masking in logs.

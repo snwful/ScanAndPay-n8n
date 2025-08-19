@@ -30,3 +30,30 @@ Roadmap
 - Short term: Use n8n IMAP/email alert parsing to verify incoming funds before relying on slips; document the flow and security controls.
 - Medium term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both backends.
 - Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.
+
+## SlipOK-inspired Admin Features to Adopt
+- Metabox on order edit: slip thumbnail, status, approved amount/reference, logs, and a “Re-verify” button.
+- Order list column “Scan&Pay” (HPOS-safe) with concise status badge.
+- AJAX endpoint `wp_ajax_san8n_verify_again` with nonce + caps; calls verifier and updates order meta/status immediately.
+- Scheduler: if response is `pending` with optional `delay`, schedule `san8n_verify_uploaded_slip` to re-check later.
+- Optional auto‑status update: move to Processing/Completed on approval (setting-driven).
+- Anti-reuse: compute/store slip hash to prevent reuse across orders.
+
+## Verification Backend Adapter Contract
+Any backend (n8n/Laravel) must return a uniform JSON object:
+```
+{
+  "status": "approved|pending|rejected",
+  "message": "optional human readable",
+  "approved_amount": 1499.00,
+  "reference_id": "abc123",
+  "delay": 10
+}
+```
+- WordPress will treat `pending` as re-checkable and may schedule a retry using `delay` (minutes).
+- All requests are HMAC-signed; HTTPS required; SSL verification ON.
+
+## Phased Plan
+- Short term (Now): Use n8n IMAP/email alert parsing to confirm incoming funds; document flow/security; add admin “Re-verify” button + metabox + column.
+- Mid term: Add Laravel adapter as selectable backend in settings; keep the same response contract; implement scheduler and optional auto‑status.
+- Long term: Slipless unique-amount + alert + webhook matching; idempotency; manual review queue; richer bank parsers.
