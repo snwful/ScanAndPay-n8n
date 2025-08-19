@@ -32,6 +32,12 @@ POST requests to `/wp-json/wc-scanandpay/v1/verify-slip` accept `order_id`, `ord
 
 - Filters respected for outbound requests: `san8n_verifier_timeout` and `san8n_verifier_retries` (args include backend id: `n8n` or `laravel`).
 
+Outbound verifier request (adapter):
+
+- REST handler uses `SAN8N_Verifier_Factory` from `includes/class-san8n-verifier.php` to call the selected backend (n8n or Laravel).
+- Outbound headers include `X-PromptPay-Timestamp`, `X-PromptPay-Signature` (HMAC-SHA256 of `${timestamp}\n${sha256(body)}`), `X-PromptPay-Version: 1.0`, and `X-Correlation-ID`.
+- HTTPS required with SSL verification; request body is multipart with `slip_image`, `order` JSON, and `session_token`.
+
 Code Quality
 
 The code compiles without syntax or fatal errors. All referenced functions, classes and variables exist.

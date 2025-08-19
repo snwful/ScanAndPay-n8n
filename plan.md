@@ -9,8 +9,9 @@ Finalize docs and execute a phased roadmap:
 ## Tasks
 - [x] Update docs to reflect static QR via Media Library, Classic/Blocks parity, responsive fixes, and REST namespace `wc-scanandpay/v1`.
 - [ ] Decide verification backend: n8n vs Laravel.
-- [ ] Define verification response contract: `{ status: approved|rejected, reference_id?, approved_amount?, reason? }`.
-- [ ] Implement backend adapter in `includes/class-san8n-rest-api.php` to call chosen service.
+- [x] Define verification response contract: `{ status: approved|rejected, reference_id?, approved_amount?, reason? }` (see `includes/class-san8n-verifier.php`).
+- [x] Document matching rules and headers across docs (README, readme.txt, instructions.md, context.md, evaluation.md, AGENTS.md, feedback.md).
+- [ ] Wire REST handler to `SAN8N_Verifier_Factory` in `includes/class-san8n-verifier.php` to call chosen service.
 - [ ] Confirm security: nonce, rate limiting, file validation, EXIF stripping.
 - [ ] Optional: add `/status/{token}` polling usage and UI progress indicators.
 - [ ] Update README/readme.txt sections as needed after backend decision.
@@ -26,6 +27,12 @@ Finalize docs and execute a phased roadmap:
 - Admin can set QR image via Media Library and configure webhook URL/secret.
 - Documentation updated (README.md, readme.txt, context.md, instructions.md, evaluation.md, feedback.md, AGENTS.md).
 - PHPCS passes (where applicable) and no console errors on checkout.
+
+## Verification Contract (Request & Headers)
+
+- Request (multipart/form-data): `slip_image` (file), `order` (JSON with `id`, `total`, `currency`), `session_token`.
+- Headers: `X-PromptPay-Timestamp` (unix), `X-PromptPay-Signature` = HMAC-SHA256 of `${timestamp}\n${sha256(body)}`, `X-PromptPay-Version: 1.0`, `X-Correlation-ID`.
+- Adapter reference: `includes/class-san8n-verifier.php` (factory + n8n/Laravel implementations).
 
 ## Next
 - Short: document and wire n8n IMAP/email parsing → backend verification; add UI copy and countdown guidance.

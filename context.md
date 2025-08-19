@@ -50,7 +50,16 @@ Any backend (n8n/Laravel) must return a uniform JSON object:
 }
 ```
 - All requests are HMAC-signed; HTTPS required; SSL verification ON.
- - Filters standardized: `san8n_verifier_timeout` (int $timeout, string $backend), `san8n_verifier_retries` (int $retries, string $backend)
+- Filters standardized: `san8n_verifier_timeout` (int $timeout, string $backend), `san8n_verifier_retries` (int $retries, string $backend)
+
+Headers (outbound to verifier):
+- `X-PromptPay-Timestamp` (unix)
+- `X-PromptPay-Signature` = HMAC-SHA256 of `${timestamp}\n${sha256(body)}` with the shared secret
+- `X-PromptPay-Version: 1.0`
+- `X-Correlation-ID` (trace)
+
+Adapter reference:
+- See `includes/class-san8n-verifier.php` (`SAN8N_Verifier_Factory`, `SAN8N_Verifier_N8n`, `SAN8N_Verifier_Laravel`).
 
 ## Phased Plan
 - Short term (Now): Use n8n IMAP/email alert parsing to confirm incoming funds; document flow/security; finalize checkout verification UX.

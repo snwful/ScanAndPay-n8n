@@ -137,6 +137,19 @@ Unified response contract expected from any backend:
 }
 ```
 
+= Verification Contract =
+
+- Request (multipart/form-data): `slip_image` (file), `order` (JSON with `id`, `total`, `currency`), `session_token`.
+- Headers: `X-PromptPay-Timestamp` (unix), `X-PromptPay-Signature` (HMAC-SHA256 of `${timestamp}\n${sha256(body)}`), `X-PromptPay-Version: 1.0`, `X-Correlation-ID`.
+- Adapter implementation reference: `includes/class-san8n-verifier.php` (factory + n8n/Laravel adapters).
+
+= Matching Rules (Informational) =
+
+- Time window: match bank email alerts within a configurable window (e.g., 10–15 minutes) around checkout.
+- Amount: Pro (Laravel) requires exact match using a unique-amount suffix; Standard (n8n) may allow a small tolerance if enabled.
+- Idempotency: deduplicate by email Message-ID/reference; propagate `X-Correlation-ID` for tracing.
+- Outcome: backend returns `approved` or `rejected` only, with optional `reference_id`, `approved_amount`, `message`.
+
 == Optional Enhancements ==
 
 - Progress UI and retry hints during verification

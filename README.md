@@ -50,6 +50,19 @@ See `readme.txt` for changelog and detailed instructions.
 }
 ```
 
+### Verification Contract (Request & Headers)
+
+- Request (multipart/form-data): `slip_image` (file), `order` (JSON with `id`, `total`, `currency`), `session_token`.
+- Headers: `X-PromptPay-Timestamp` (unix), `X-PromptPay-Signature` (HMAC-SHA256 of `${timestamp}\n${sha256(body)}`), `X-PromptPay-Version: 1.0`, `X-Correlation-ID`.
+- Adapter implementation: see `includes/class-san8n-verifier.php` (`SAN8N_Verifier_Factory`, `SAN8N_Verifier_N8n`, `SAN8N_Verifier_Laravel`).
+
+### Matching Rules (Summary)
+
+- Time window: match incoming email alerts within a configurable window (e.g., 10–15 min) around checkout.
+- Amount: Pro (Laravel) requires exact match using unique-amount suffix; Standard (n8n) may allow small tolerance if enabled.
+- Idempotency: dedupe via email Message-ID/reference; pass through `X-Correlation-ID` for tracing.
+- Outcome: backend returns only `approved` or `rejected` with optional `reference_id`, `approved_amount`, `message`.
+
 ## Optional Enhancements (Out of Scope)
 
 - Progress UI and retry hints on verification.

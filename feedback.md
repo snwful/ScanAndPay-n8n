@@ -8,6 +8,8 @@ Potential Issues or Blind Spots – Note any assumptions or areas that might nee
 
 Future Improvements – Suggest enhancements such as progress UI for verification, retries, async status polling, choosing and integrating the final verification backend (n8n or Laravel), and possible future dynamic QR generation if requirements change.
 
+Alignment With Matching Rules & Coverage – Ensure any future improvements stay consistent with the documented Matching Rules (time window, exact vs tolerant amount, idempotency via email Message-ID and `X-Correlation-ID`) and expand supported bank email parser coverage. Keep the unified adapter contract and outbound headers (`X-PromptPay-*`) intact across n8n/Laravel.
+
 Structure the feedback as bullet points or short paragraphs. Aim to be honest and constructive, highlighting strengths and weaknesses of the solution.
  
  Roadmap Alignment (Short/Mid/Long)

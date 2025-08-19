@@ -72,6 +72,12 @@ Maintain backwards‑compatible hooks and filters where possible. If you remove 
   - Unit/integration tests for REST verification path and meta updates.
   - Manual: verify Classic/Blocks flows, auto-submit on approval, and error paths.
 
+## Verification Contract (Request & Headers)
+
+- Request (multipart/form-data): `slip_image` (file), `order` (JSON with `id`, `total`, `currency`), `session_token`.
+- Headers: `X-PromptPay-Timestamp` (unix), `X-PromptPay-Signature` = HMAC-SHA256 of `${timestamp}\n${sha256(body)}`, `X-PromptPay-Version: 1.0`, `X-Correlation-ID`.
+- Adapter reference: `includes/class-san8n-verifier.php` (`SAN8N_Verifier_Factory`, `SAN8N_Verifier_N8n`, `SAN8N_Verifier_Laravel`).
+
 Notes / Roadmap (do not implement in this iteration):
 - Short term: Use n8n IMAP/email alert parsing to verify incoming funds; document the flow and security controls.
 - Medium term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both backends under checkout-only flow.

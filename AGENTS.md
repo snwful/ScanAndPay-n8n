@@ -7,6 +7,7 @@ Rules and map for agents (Codex/Windsurf/Cursor) to work safely on this WooComme
 - scanandpay-n8n.php (bootstrap, constants like `SAN8N_REST_NAMESPACE`)
 - includes/class-san8n-gateway.php (settings incl. `qr_image_url`, classic checkout UI)
 - includes/class-san8n-rest-api.php (POST /verify-slip)
+- includes/class-san8n-verifier.php (adapter factory + implementations: n8n/Laravel)
 - includes/class-san8n-blocks-integration.php (Blocks checkout integration; passes `qr_placeholder`)
 - assets/js/checkout-inline.js (classic checkout logic)
 - assets/js/blocks-integration.js (Blocks UI logic)
@@ -29,6 +30,12 @@ Maintain security: nonces, file type/size validation, EXIF stripping, capability
 POST /wp-json/wc-scanandpay/v1/verify-slip (multipart)
 - slip_image (file), session_token, order_id, order_total
 Backend (n8n or Laravel TBD) → { status: approved|rejected, reference_id?, approved_amount?, reason? }
+
+Headers (outbound to verifier):
+- X-PromptPay-Timestamp (unix)
+- X-PromptPay-Signature = HMAC-SHA256 of `${timestamp}\n${sha256(body)}` with shared secret
+- X-PromptPay-Version: 1.0
+- X-Correlation-ID (trace)
 
 ## Policies
 - Bump plugin header + SAN8N_VERSION every change
