@@ -53,18 +53,6 @@ class SAN8N_REST_API {
                     )
                 )
             ));
-
-            call_user_func('register_rest_route', SAN8N_REST_NAMESPACE, '/status/(?P<token>[a-zA-Z0-9_-]+)', array(
-                'methods' => $readable,
-                'callback' => array($this, 'get_status'),
-                'permission_callback' => $permission_true,
-                'args' => array(
-                    'token' => array(
-                        'required' => true,
-                        'sanitize_callback' => $sanitize_text
-                    )
-                )
-            ));
         }
     }
 
@@ -182,6 +170,8 @@ class SAN8N_REST_API {
             $n8n_url_raw = isset($settings['n8n_webhook_url']) ? $settings['n8n_webhook_url'] : '';
             $n8n_url = is_callable('esc_url_raw') ? call_user_func('esc_url_raw', $n8n_url_raw) : $n8n_url_raw;
             $shared_secret = isset($settings['shared_secret']) ? $settings['shared_secret'] : '';
+            $scheme = function_exists('parse_url') ? parse_url($n8n_url, PHP_URL_SCHEME) : '';
+            $use_n8n = $n8n_url && strtolower((string) $scheme) === 'https';
 
             $attachment_path = is_callable('get_attached_file') ? call_user_func('get_attached_file', $attachment_id) : '';
             $this->strip_exif_data($attachment_path);
@@ -209,10 +199,12 @@ class SAN8N_REST_API {
             $body_hash = hash('sha256', $body);
             $signature = hash_hmac('sha256', $timestamp . "\n" . $body_hash, $shared_secret);
 
-            $response_data = array('status' => 'pending', 'reason' => 'verifier_unreachable', 'approved_amount' => 0.0);
-            if ($n8n_url && is_callable('wp_remote_post')) {
+            // Default to rejected to avoid any pending state in checkout-only flow
+            $response_data = array('status' => 'rejected', 'reason' => 'verifier_unreachable', 'message' => 'verifier_unreachable', 'approved_amount' => 0.0);
+            if ($use_n8n && is_callable('wp_remote_post')) {
                 $response = call_user_func('wp_remote_post', $n8n_url, array(
                     'timeout' => 8,
+                    'sslverify' => true,
                     'headers' => array(
                         'Content-Type' => 'multipart/form-data; boundary=' . $boundary,
                         'X-PromptPay-Timestamp' => $timestamp,
@@ -225,8 +217,9 @@ class SAN8N_REST_API {
 
                 $is_error = is_callable('is_wp_error') ? call_user_func('is_wp_error', $response) : false;
                 if ($is_error) {
-                    // Keep pending status to allow client to retry/poll
+                    // Treat as rejected to enforce immediate decision at checkout
                     $response_data['reason'] = 'verifier_unreachable';
+                    $response_data['message'] = 'verifier_unreachable';
                 } else {
                     $resp_body = is_callable('wp_remote_retrieve_body') ? call_user_func('wp_remote_retrieve_body', $response) : '';
                     $tmp = json_decode($resp_body, true);
@@ -234,6 +227,11 @@ class SAN8N_REST_API {
                         $response_data = (is_callable('wp_parse_args') ? call_user_func('wp_parse_args', $tmp, $response_data) : array_merge($response_data, $tmp));
                     }
                 }
+            }
+
+            // Map adapter 'message' to 'reason' if reason is missing or invalid
+            if (isset($response_data['message']) && (!isset($response_data['reason']) || !is_string($response_data['reason']) || $response_data['reason'] === '')) {
+                $response_data['reason'] = $response_data['message'];
             }
 
             $order = is_callable('wc_get_order') ? call_user_func('wc_get_order', $order_id) : null;
@@ -258,20 +256,22 @@ class SAN8N_REST_API {
                     }
                 }
 
-            $resp_payload = array(
+                $resp_payload = array(
                     'status' => 'approved',
                     'reference_id' => $reference_id,
                     'approved_amount' => $approved_amount,
                     'correlation_id' => $correlation_id
                 );
-            return class_exists('WP_REST_Response') ? new WP_REST_Response($resp_payload, 200) : $resp_payload;
+                return class_exists('WP_REST_Response') ? new WP_REST_Response($resp_payload, 200) : $resp_payload;
             }
 
             $reason = isset($response_data['reason']) ? (is_callable('sanitize_text_field') ? call_user_func('sanitize_text_field', $response_data['reason']) : (is_string($response_data['reason']) ? $response_data['reason'] : '')) : '';
+            $message = isset($response_data['message']) ? (is_callable('sanitize_text_field') ? call_user_func('sanitize_text_field', $response_data['message']) : (is_string($response_data['message']) ? $response_data['message'] : '')) : $reason;
 
             $resp_payload = array(
                 'status' => 'rejected',
                 'reason' => $reason,
+                'message' => $message,
                 'correlation_id' => $correlation_id
             );
             return class_exists('WP_REST_Response') ? new WP_REST_Response($resp_payload, 200) : $resp_payload;
@@ -282,6 +282,7 @@ class SAN8N_REST_API {
             return new WP_Error('verification_failed', $msg, array('status' => 500));
         }
     }
+
     private function process_file_upload() {
         if (!isset($_FILES['slip_image'])) {
             $msg = is_callable('__') ? call_user_func('__', 'No file uploaded.', 'scanandpay-n8n') : 'No file uploaded.';
@@ -370,17 +371,6 @@ class SAN8N_REST_API {
         $body .= '--' . $boundary . '--' . "\r\n";
 
         return $body;
-    }
-
-    public function get_status($request) {
-        $token = $request->get_param('token');
-        
-        // Stub implementation for v1 - always return pending
-        $payload = array(
-            'status' => 'pending',
-            'message' => (is_callable('__') ? call_user_func('__', 'Status check endpoint reserved for future async implementation.', 'scanandpay-n8n') : 'Status check endpoint reserved for future async implementation.')
-        );
-        return class_exists('WP_REST_Response') ? new WP_REST_Response($payload, 200) : $payload;
     }
 
     private function get_error_status_code($error_code) {

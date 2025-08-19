@@ -24,15 +24,15 @@
             
             let confirmMessage = '';
             switch(action) {
-                case 'reverify':
-                    confirmMessage = san8n_admin.i18n.confirm_reverify;
-                    break;
                 case 'approve':
                     confirmMessage = san8n_admin.i18n.confirm_approve;
                     break;
                 case 'reject':
                     confirmMessage = san8n_admin.i18n.confirm_reject;
                     break;
+                default:
+                    // Unknown/unsupported action in checkout-only flow
+                    return;
             }
             
             if (!confirm(confirmMessage)) {

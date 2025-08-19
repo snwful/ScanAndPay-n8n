@@ -55,7 +55,6 @@ class SAN8N_Admin {
         if (is_callable('add_action')) {
             call_user_func('add_action', 'add_meta_boxes', array($this, 'add_order_meta_box'));
             // Handle admin actions
-            call_user_func('add_action', 'wp_ajax_san8n_reverify', array($this, 'handle_reverify'));
             call_user_func('add_action', 'wp_ajax_san8n_approve', array($this, 'handle_approve'));
             call_user_func('add_action', 'wp_ajax_san8n_reject', array($this, 'handle_reject'));
             call_user_func('add_action', 'wp_ajax_san8n_test_webhook', array($this, 'handle_test_webhook'));
@@ -197,13 +196,6 @@ class SAN8N_Admin {
             <?php if ($can_manage): ?>
             <div class="san8n-actions">
                 <h4><?php $this->e_tr('Actions'); ?></h4>
-                <button type="button" 
-                        class="button san8n-action-button" 
-                        data-action="reverify" 
-                        data-order-id="<?php echo $this->esc_attr_out($order->get_id()); ?>">
-                    <?php $this->e_tr('Re-verify'); ?>
-                </button>
-                
                 <?php if ($status !== 'approved'): ?>
                 <button type="button" 
                         class="button san8n-action-button" 
@@ -286,7 +278,6 @@ class SAN8N_Admin {
                     'ajax_url' => $ajax_url,
                     'nonce' => $nonce,
                     'i18n' => array(
-                        'confirm_reverify' => (is_callable('__') ? call_user_func('__', 'Are you sure you want to re-verify this payment?', 'scanandpay-n8n') : 'Are you sure you want to re-verify this payment?'),
                         'confirm_approve' => (is_callable('__') ? call_user_func('__', 'Are you sure you want to manually approve this payment?', 'scanandpay-n8n') : 'Are you sure you want to manually approve this payment?'),
                         'confirm_reject' => (is_callable('__') ? call_user_func('__', 'Are you sure you want to reject this payment?', 'scanandpay-n8n') : 'Are you sure you want to reject this payment?'),
                         'processing' => (is_callable('__') ? call_user_func('__', 'Processing...', 'scanandpay-n8n') : 'Processing...'),
@@ -341,10 +332,6 @@ class SAN8N_Admin {
         }
     }
 
-    public function handle_reverify() {
-        $this->handle_admin_action('reverify');
-    }
-
     public function handle_approve() {
         $this->handle_admin_action('approve');
     }
@@ -384,10 +371,6 @@ class SAN8N_Admin {
         $user = is_callable('wp_get_current_user') ? call_user_func('wp_get_current_user') : (object) array('display_name' => 'user', 'ID' => 0);
 
         switch ($action) {
-            case 'reverify':
-                $this->perform_reverify($order, $correlation_id);
-                break;
-
             case 'approve':
                 $order->update_meta_data('_san8n_status', 'approved');
                 $order->update_meta_data('_san8n_last_checked', (is_callable('current_time') ? call_user_func('current_time', 'mysql') : date('Y-m-d H:i:s')));
@@ -437,48 +420,7 @@ class SAN8N_Admin {
         if (is_callable('wp_die')) { call_user_func('wp_die', json_encode(array('success' => true, 'message' => $msg))); }
     }
 
-    private function perform_reverify($order, $correlation_id) {
-        $attachment_id = $order->get_meta('_san8n_attachment_id');
-        
-        if (!$attachment_id) {
-            $msg = is_callable('__') ? call_user_func('__', 'No slip attachment found.', 'scanandpay-n8n') : 'No slip attachment found.';
-            if (is_callable('wp_die')) { call_user_func('wp_die', json_encode(array('success' => false, 'message' => $msg))); }
-            return;
-        }
-
-        // Get settings (guard array keys)
-        $settings = is_callable('get_option') ? call_user_func('get_option', SAN8N_OPTIONS_KEY, array()) : array();
-        $n8n_url = isset($settings['n8n_webhook_url']) ? (string) $settings['n8n_webhook_url'] : '';
-        $shared_secret = isset($settings['shared_secret']) ? (string) $settings['shared_secret'] : '';
-
-        if (empty($n8n_url) || empty($shared_secret)) {
-            $msg = is_callable('__') ? call_user_func('__', 'Gateway not configured.', 'scanandpay-n8n') : 'Gateway not configured.';
-            if (is_callable('wp_die')) { call_user_func('wp_die', json_encode(array('success' => false, 'message' => $msg))); }
-            return;
-        }
-
-        // Prepare request (similar to verify_slip but simpler)
-        $attachment_path = is_callable('get_attached_file') ? call_user_func('get_attached_file', $attachment_id) : '';
-        if (!file_exists($attachment_path)) {
-            $msg = is_callable('__') ? call_user_func('__', 'Slip file not found.', 'scanandpay-n8n') : 'Slip file not found.';
-            if (is_callable('wp_die')) { call_user_func('wp_die', json_encode(array('success' => false, 'message' => $msg))); }
-            return;
-        }
-
-        // Make reverification request
-        // [Implementation would be similar to verify_slip in REST API class]
-        
-        $user = is_callable('wp_get_current_user') ? call_user_func('wp_get_current_user') : (object) array('display_name' => 'user', 'ID' => 0);
-        $order->add_order_note(sprintf(
-            $this->tr('[SAN8N] Payment re-verification initiated by %s (User ID: %d). Correlation ID: %s'),
-            $user->display_name,
-            $user->ID,
-            $correlation_id
-        ), 0, true);
-
-        $msg = is_callable('__') ? call_user_func('__', 'Re-verification initiated.', 'scanandpay-n8n') : 'Re-verification initiated.';
-        if (is_callable('wp_die')) { call_user_func('wp_die', json_encode(array('success' => true, 'message' => $msg))); }
-    }
+    
 
     public function handle_test_webhook() {
         // Check nonce

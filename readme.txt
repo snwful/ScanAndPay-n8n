@@ -84,18 +84,7 @@ Scan & Pay (n8n) is a WooCommerce payment gateway plugin that enables customers 
 * Access rejection reasons
 * View timestamps and audit log
 
-= Admin Actions =
-
-* **Re-verify** - Retry payment verification
-* **Approve** - Manually approve payment
-* **Reject** - Manually reject with reason
-* All actions logged with user and timestamp
-
-= Capabilities =
-
-* Custom capability: `manage_san8n_payments`
-* Administrators have this by default
-* Can be assigned to other roles as needed
+ 
 
 == Security Features ==
 
@@ -122,7 +111,7 @@ Scan & Pay (n8n) is a WooCommerce payment gateway plugin that enables customers 
 = REST API Endpoints =
 
 * `POST /wp-json/wc-scanandpay/v1/verify-slip` - Verify payment slip
-* `GET /wp-json/wc-scanandpay/v1/status/{token}` - Check verification status
+ 
 
 = Constants =
 
@@ -141,30 +130,22 @@ Unified response contract expected from any backend:
 
 ```
 {
-  "status": "approved|pending|rejected",
+  "status": "approved|rejected",
   "message": "optional",
   "approved_amount": 1499.00,
-  "reference_id": "abc123",
-  "delay": 10
+  "reference_id": "abc123"
 }
 ```
 
-If `status = pending`, `delay` (minutes) may be provided so WordPress can schedule a re-check.
+== Optional Enhancements ==
 
-== Admin (SlipOK-inspired) — Roadmap ==
-
-- Order metabox: slip thumbnail, status badge, approved amount/reference, logs, and a “Re-verify” button
-- Order list column “Scan&Pay” (HPOS-safe) with concise status
-- AJAX `wp_ajax_san8n_verify_again` with nonce + capability checks; updates UI instantly
-- Scheduler: on `pending`, enqueue a single re-check via WP-Cron
-- Optional: auto-update order status (Processing/Completed) when approved
-- Anti-reuse (optional): store slip hash to prevent reuse across orders
+- Progress UI and retry hints during verification
+- Optional anti-reuse via slip hash; optional support for `webp/jfif` with strict validation
+- Laravel adapter as an alternative backend using the same contract
 
 == Laravel Adapter Quickstart (Planned) ==
 
 - Endpoint: `POST /api/verify` with HMAC-signed JSON body matching the contract above
-- Poll: `GET /api/status/{reference_id}` for async status
-- Security: HTTPS only, SSL verification enabled, HMAC via shared secret configured in plugin settings
 - Timeouts/retries configurable via WordPress filters (to be documented)
 
 == Troubleshooting ==

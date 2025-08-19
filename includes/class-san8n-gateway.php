@@ -399,9 +399,11 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                     'approved' => (is_callable('__') ? call_user_func('__', 'Payment approved! Processing order...', 'scanandpay-n8n') : 'Payment approved! Processing order...'),
                     'rejected' => (is_callable('__') ? call_user_func('__', 'Payment rejected. Please try again.', 'scanandpay-n8n') : 'Payment rejected. Please try again.'),
                     'error' => (is_callable('__') ? call_user_func('__', 'Verification error. Please try again.', 'scanandpay-n8n') : 'Verification error. Please try again.'),
+                    'service_unavailable' => (is_callable('__') ? call_user_func('__', 'Verification service unavailable. Please try again.', 'scanandpay-n8n') : 'Verification service unavailable. Please try again.'),
                     'file_too_large' => (is_callable('__') ? call_user_func('__', 'File size exceeds limit.', 'scanandpay-n8n') : 'File size exceeds limit.'),
                     'invalid_file_type' => (is_callable('__') ? call_user_func('__', 'Invalid file type. Please upload JPG or PNG.', 'scanandpay-n8n') : 'Invalid file type. Please upload JPG or PNG.'),
                     'upload_required' => (is_callable('__') ? call_user_func('__', 'Please upload a payment slip.', 'scanandpay-n8n') : 'Please upload a payment slip.'),
+                    'verify_required' => (is_callable('__') ? call_user_func('__', 'Please verify your payment before placing the order.', 'scanandpay-n8n') : 'Please verify your payment before placing the order.'),
                     'processing_order' => (is_callable('__') ? call_user_func('__', 'Processing order...', 'scanandpay-n8n') : 'Processing order...'),
                     'verify_payment' => (is_callable('__') ? call_user_func('__', 'Verify Payment', 'scanandpay-n8n') : 'Verify Payment')
                 )

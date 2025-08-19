@@ -63,20 +63,17 @@ Roadmap Alignment
 - Medium term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both backends.
 - Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.
 
-Planned Checks (SlipOK-inspired)
+Planned Checks (Checkout-only)
 
-- Admin Re-verify:
-  - A "Re-verify" button appears on WooCommerce order edit and triggers `wp_ajax_san8n_verify_again` with nonce/caps.
-  - On success, UI updates status/message without page reload; logs append to order meta.
-- Metabox & Columns:
-  - Metabox shows slip thumbnail, status badge, approved amount/reference, logs, and a re-verify action.
-  - Order list displays a "Scan&Pay" column (HPOS-safe) with concise status.
-- Scheduler:
-  - When backend returns `status: pending` with optional `delay`, a single event is scheduled to re-check.
-  - Re-check result updates order and cancels further retries upon approval/rejection.
+- Checkout Verification UX:
+  - Verify button sends slip to `/verify-slip` with minimal payload.
+  - On `approved`, Place order becomes enabled; auto-submit triggers if configured.
+  - On `rejected`, clear approval flag and show translated error; Place order remains disabled.
 - Backend Adapter:
-  - REST handler calls either n8n or Laravel using a unified contract `{ status, message?, approved_amount?, reference_id?, delay? }`.
-  - HMAC signing enforced; HTTPS/SSL verification enabled; timeouts and retries are reasonable.
-- Anti-reuse & File Types:
-  - Optional slip hash stored to prevent reuse across orders.
-  - Optional support for `webp/jfif` with safe server-side validation.
+  - REST handler calls n8n (and optionally Laravel later) using unified contract `{ status, message?, approved_amount?, reference_id? }`.
+  - HMAC signing enforced; HTTPS/SSL verification enabled; timeouts/retries reasonable.
+- Classic/Blocks Parity:
+  - Both checkouts render static QR placeholder and use the same verify flow without console errors.
+- Anti-reuse & File Types (optional):
+  - Optional slip hash to block reuse across orders.
+  - Optional safe support for `webp/jfif` with strict server-side validation.

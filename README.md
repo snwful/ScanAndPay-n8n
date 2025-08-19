@@ -44,43 +44,29 @@ See `readme.txt` for changelog and detailed instructions.
 
 ```json
 {
-  "status": "approved|pending|rejected",
+  "status": "approved|rejected",
   "message": "optional",
   "approved_amount": 1499.00,
-  "reference_id": "abc123",
-  "delay": 10
+  "reference_id": "abc123"
 }
 ```
 
-`pending` may include `delay` (minutes) so WordPress can schedule a re-check.
+## Optional Enhancements (Out of Scope)
 
-## Admin (SlipOK-inspired) — Roadmap
-
-- Order metabox: slip thumbnail, status badge, approved amount/reference, logs, and a “Re-verify” action
-- Order list column “Scan&Pay” (HPOS-safe) with concise status
-- AJAX `wp_ajax_san8n_verify_again` (nonce + capability) to re-verify and update UI instantly
-- Scheduler: if backend returns `pending`, enqueue a single re-check using WP-Cron
-- Optional: auto-update order status to Processing/Completed on approval (setting)
-- Anti-reuse (optional): store slip hash to prevent reuse across orders
+- Progress UI and retry hints on verification.
+- Optional anti-reuse via slip hash; optional support for `webp/jfif` with strict validation.
+- Laravel adapter as an alternative backend using the same contract.
 
 ## Open Tasks
 
-- [ ] Test admin: Select QR image via media picker, preview shows, Save changes, reload confirms persistence (in progress)
-- [ ] Test classic checkout: static QR image displays from saved URL; no PromptPay assets/shortcodes used; no 404s
-- [ ] Test WooCommerce Blocks checkout: static QR image displays; no PromptPay assets; no console errors
+- [ ] Admin: Select QR via media picker, preview, save, reload persists (in progress)
+- [ ] Classic checkout: static QR displays; no PromptPay assets/shortcodes; no 404s
+- [ ] WooCommerce Blocks checkout: same image; no console errors
 - [ ] Optional cleanup: remove PromptPay wording from gateway title/description defaults in `includes/class-san8n-gateway.php`
-- [x] Design Laravel verification service: endpoint contract, security (HMAC), email-check strategy (Gmail API vs IMAP), status model
-- [x] Prototype Laravel `/api/verify` endpoint and an IMAP-based email check Job; return approved/pending/rejected JSON
-- [x] Update docs across AGENTS, context, evaluation, feedback, instructions, plan, README, readme.txt to reflect SlipOK-inspired admin patterns, backend adapter, scheduler
-- [ ] Implement admin metabox on order edit (slip thumbnail, status, ref, logs) and Re-verify button
-- [ ] Add HPOS-safe order list column 'Scan&Pay' with concise status
-- [ ] Add AJAX endpoint `wp_ajax_san8n_verify_again` with nonce/caps; update UI and order meta on success
-- [ ] Add scheduler hook `san8n_verify_uploaded_slip` and enqueue re-check on pending (respect delay)
-- [ ] Introduce backend adapter wrapper (n8n default; Laravel optional) with unified response contract
-- [ ] Add settings to choose backend (n8n/Laravel) and optional auto-update order status
-- [ ] Anti-reuse: compute/store slip hash to prevent reuse across orders
-- [ ] Security hardening: enforce HTTPS/SSL verify, HMAC, timeouts/retries; PII masking in logs
-- [ ] Tests: unit/integration for AJAX, scheduler, adapter; manual regression on Classic/Blocks
+- [ ] REST flow: `/verify-slip` returns approved|rejected only; set/clear session accordingly; Classic auto-submit on approval (if enabled)
+- [ ] Adapter wrapper: unify n8n (Laravel optional later) with contract `{ status, message?, approved_amount?, reference_id? }`
+- [ ] Security hardening: enforce HTTPS/SSL verify, HMAC, timeouts/retries; strict file validation; PII masking in logs
+- [ ] Tests: unit/integration for REST adapter; manual regression on Classic/Blocks
 
 ## Laravel Adapter Quickstart (Planned)
 

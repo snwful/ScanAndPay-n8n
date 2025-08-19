@@ -14,8 +14,6 @@
         init: function() {
             this.bindEvents();
             this.initializeState();
-            // Ensure PromptPay QR is initialized on first load
-            this.reinitPromptPay();
         },
 
         bindEvents: function() {
@@ -37,11 +35,6 @@
             // Before checkout validation
             $(document).on('checkout_place_order_' + san8n_params.gateway_id, this.validateBeforeSubmit);
 
-            // WooCommerce checkout refresh events
-            $(document.body).on(
-                'updated_checkout wc_fragments_loaded wc_fragments_refreshed updated_wc_div',
-                this.reinitPromptPay
-            );
         },
 
         initializeState: function() {
@@ -51,32 +44,7 @@
             }
         },
 
-        reinitPromptPay: function() {
-            // Re-run PromptPay initializer after WC updates DOM
-            setTimeout(function() {
-                if (window.PromptPay && typeof window.PromptPay.init === 'function' && $('.ppy-card').length) {
-                    // Update amount from current order total if available
-                    try {
-                        var totalText = $('#order_review .order-total .amount').text();
-                        if (totalText) {
-                            var total = parseFloat(totalText.replace(/[^\d.]/g, ''));
-                            if (!isNaN(total)) {
-                                $('.ppy-card').each(function() {
-                                    $(this).attr('data-amount', total.toFixed(2));
-                                });
-                            }
-                        }
-                    } catch (e) {
-                        // ignore
-                    }
-                    try {
-                        window.PromptPay.init();
-                    } catch (err) {
-                        // fail silently to avoid blocking checkout
-                    }
-                }
-            }, 0);
-        },
+        
 
         handleFileSelect: function(e) {
             const file = e.target.files[0];
@@ -162,10 +130,8 @@
                 success: function(response) {
                     if (response.status === 'approved') {
                         SAN8N_Checkout.handleApproval(response);
-                    } else if (response.status === 'rejected') {
-                        SAN8N_Checkout.handleRejection(response);
                     } else {
-                        SAN8N_Checkout.handlePending(response);
+                        SAN8N_Checkout.handleRejection(response);
                     }
                 },
                 error: function(xhr) {
@@ -225,15 +191,11 @@
             $('#san8n-verify-button').prop('disabled', false);
         },
 
-        handlePending: function(response) {
-            SAN8N_Checkout.showStatus('Payment verification pending...', 'warning');
-        },
+        
 
         handlePaymentMethodChange: function() {
             if ($('#payment_method_' + san8n_params.gateway_id).is(':checked')) {
                 SAN8N_Checkout.showPaymentFields();
-                // Ensure QR is (re)initialized when switching to this method
-                SAN8N_Checkout.reinitPromptPay();
             } else {
                 SAN8N_Checkout.hidePaymentFields();
             }
@@ -250,7 +212,7 @@
 
         validateBeforeSubmit: function() {
             if (!isApproved) {
-                SAN8N_Checkout.showError('Please verify your payment before placing the order.');
+                SAN8N_Checkout.showError(san8n_params.i18n.verify_required || 'Please verify your payment before placing the order.');
                 return false;
             }
             return true;

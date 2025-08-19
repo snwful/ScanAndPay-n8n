@@ -91,18 +91,6 @@
     border: 1px solid #f5c6cb;
 }
 
-.san8n-status-pending {
-    background: #fff3cd;
-    color: #856404;
-    border: 1px solid #ffeeba;
-}
-
-.san8n-status-expired {
-    background: #e2e3e5;
-    color: #383d41;
-    border: 1px solid #d6d8db;
-}
-
 /* Action Buttons */
 .san8n-actions {
     margin: 20px 0;
@@ -138,15 +126,6 @@
 .san8n-action-button:focus {
     outline: 2px solid #2271b1;
     outline-offset: 2px;
-}
-
-.san8n-action-reverify {
-    background: #2271b1;
-    color: white;
-}
-
-.san8n-action-reverify:hover {
-    background: #135e96;
 }
 
 .san8n-action-approve {

@@ -83,18 +83,17 @@ class SAN8N_Helper {
         $esc_attr = function($v) { return is_callable('esc_attr') ? call_user_func('esc_attr', $v) : htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); };
         $esc_html = function($v) { return is_callable('esc_html') ? call_user_func('esc_html', $v) : htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); };
 
+        // Checkout-only: support only approved|rejected. Default any other value to rejected.
         $status_labels = array(
             'approved' => $tr('Approved'),
             'rejected' => $tr('Rejected'),
-            'pending' => $tr('Pending'),
-            'expired' => $tr('Expired')
         );
-        
-        $label = isset($status_labels[$status]) ? $status_labels[$status] : ucfirst($status);
+        $normalized = in_array($status, array('approved', 'rejected'), true) ? $status : 'rejected';
+        $label = $status_labels[$normalized];
         
         return sprintf(
             '<span class="san8n-status-badge san8n-status-%s">%s</span>',
-            $esc_attr($status),
+            $esc_attr($normalized),
             $esc_html($label)
         );
     }

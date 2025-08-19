@@ -128,7 +128,7 @@ final class SAN8N_Blocks_Integration extends SAN8N_AbstractPaymentMethodType_Run
                 'qr_placeholder' => $qr_url
             ),
             'rest_url' => is_callable('rest_url') ? call_user_func('rest_url', SAN8N_REST_NAMESPACE) : '',
-            'nonce' => is_callable('wp_create_nonce') ? call_user_func('wp_create_nonce', 'san8n-verify') : '',
+            'nonce' => is_callable('wp_create_nonce') ? call_user_func('wp_create_nonce', 'wp_rest') : '',
             'gateway_id' => $this->name,
             'i18n' => array(
                 'scan_qr' => $this->tr('Step 1: Scan QR Code'),
@@ -143,6 +143,7 @@ final class SAN8N_Blocks_Integration extends SAN8N_AbstractPaymentMethodType_Run
                 'file_too_large' => $this->tr('File size exceeds limit.'),
                 'invalid_file_type' => $this->tr('Invalid file type. Please upload JPG or PNG.'),
                 'upload_required' => $this->tr('Please upload a payment slip.'),
+                'verify_required' => $this->tr('Please verify your payment before placing the order.'),
                 'amount_label' => $this->tr('Amount: %s THB'),
                 'accepted_formats' => $this->tr('Accepted formats: JPG, PNG (max %dMB)'),
                 'remove' => $this->tr('Remove')

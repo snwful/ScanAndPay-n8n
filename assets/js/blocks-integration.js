@@ -38,7 +38,7 @@ const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
             if (verificationStatus !== 'approved') {
                 return {
                     type: emitResponse.responseTypes.ERROR,
-                    message: settings.i18n.upload_required,
+                    message: settings.i18n.verify_required,
                 };
             }
 
@@ -63,7 +63,7 @@ const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
             if (verificationStatus !== 'approved') {
                 return {
                     type: emitResponse.responseTypes.ERROR,
-                    message: settings.i18n.upload_required,
+                    message: settings.i18n.verify_required,
                 };
             }
             return true;
@@ -174,7 +174,9 @@ const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
         } else if (response.status === 'rejected') {
             setStatusMessage(response.reason || settings.i18n.rejected);
         } else {
-            setStatusMessage('Verification pending...');
+            // Defensive: backend should never return other statuses in checkout-only flow
+            setVerificationStatus('error');
+            setStatusMessage(settings.i18n.error);
         }
     };
 
