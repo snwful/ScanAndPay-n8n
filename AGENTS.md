@@ -47,6 +47,10 @@ Headers (outbound to verifier):
 ## Do / Don’t
 - Do use the `qr_image_url` setting and Media Library picker for the QR placeholder.
 - Do localize needed data via `wp_localize_script` (e.g., numeric `order_total`).
+- Do enforce HTTPS and a shared secret/HMAC when forwarding from Tasker→n8n/Laravel.
+- Do disable battery optimizations and allow background activity for Tasker on the Android device used.
+- Do de-duplicate forwarded alerts in backend (e.g., nid+timestamp or content hash) and keep a short-lived cache for matching.
+- Do mask PII in logs; only send minimal fields from Tasker (title/text/timestamp/app/nid).
 - Don’t render PromptPay shortcode or generate custom QR payloads.
 - Don’t depend on cart_hash for verification; keep payload minimal (order_id, order_total, session_token, slip_image).
 - Don’t add new deps without reason.
@@ -58,7 +62,7 @@ Headers (outbound to verifier):
 - Version and changelog are consistent; plan.md updated; evaluation.md checks pass.
 
 ## Roadmap
-- Short term (Now): Integrate n8n IMAP/email alert parsing as a verification source to confirm incoming funds before relying on slips; document flow and security controls.
+- Short term (Now): Integrate IMAP/email parsing or Android (Tasker) notification forwarding via n8n as a verification source; document flow, security (HTTPS/HMAC), and reliability (battery, retries, de-dup).
 - Mid term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both n8n and Laravel backends.
 - Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.
 - Additionally: Add progress UI and retry logic to improve user feedback.
@@ -68,6 +72,13 @@ Headers (outbound to verifier):
 - Optional: Laravel service with the same contract.
 - Standard response schema expected from any adapter:
   - `{ status: approved|rejected, message?, approved_amount?, reference_id? }`
+
+## Android Forwarder (Tasker)
+- Flow: Android Tasker captures bank/Stripe notifications or SMS → HTTP POST to n8n/Laravel (HTTPS).
+- Headers: `X-Device-Id`, `X-Secret` or `X-Signature` (HMAC of `${timestamp}\n${sha256(body)}`).
+- Body example (JSON): `{"source":"android-tasker","app":"%an","title":"%ntitle","text":"%ntext","posted_at":"%DATE %TIME","nid":"%nid"}`
+- Backend responsibilities: verify secret/HMAC, parse amount/reference via regex, de-dup (nid+time), cache recent transactions for matching, return unified contract.
+- Reliability: disable battery optimizations; add retries/queue; avoid PII; enforce HTTPS/SSL verify.
 
 ## Step-by-step (Implementation Order)
 1) Checkout verification: finalize frontend UX and REST integration; approve-or-reject only; optional auto-submit on approval.

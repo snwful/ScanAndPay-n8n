@@ -110,7 +110,16 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
             'verifier_settings' => array(
                 'title' => $this->tr('Verification Backend'),
                 'type' => 'title',
-                'description' => $this->tr('Choose which backend to use for slip verification and configure its credentials.'),
+                'description' => $this->tr('Choose which backend to use for slip verification and configure its credentials.') .
+                    '<div style="margin-top:6px;">' .
+                    '<strong>' . $this->tr('Android Forwarder (Tasker)') . ':</strong> ' .
+                    $this->tr('Optionally forward bank SMS or push notifications from an Android device using Tasker to your backend (n8n or Laravel). The phone formats a JSON payload and sends it to your endpoint with headers X-PromptPay-Timestamp and X-PromptPay-Signature (HMAC-SHA256 using your Shared Secret). Your backend parses and verifies, then responds according to the verification contract.') .
+                    '<br/>' .
+                    $this->tr('See documentation for setup, security, and reliability tips:') . ' ' .
+                    '<a href="' . (defined('SAN8N_PLUGIN_URL') ? SAN8N_PLUGIN_URL : '') . 'README.md" target="_blank" rel="noopener">README.md</a>' .
+                    ' · ' .
+                    '<a href="' . (defined('SAN8N_PLUGIN_URL') ? SAN8N_PLUGIN_URL : '') . 'readme.txt" target="_blank" rel="noopener">readme.txt</a>' .
+                    '</div>',
             ),
             'verifier_backend' => array(
                 'title' => $this->tr('Backend'),

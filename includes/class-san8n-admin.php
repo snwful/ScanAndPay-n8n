@@ -504,20 +504,129 @@ class SAN8N_Admin {
 
         $is_err = is_callable('is_wp_error') ? call_user_func('is_wp_error', $response) : false;
         if ($is_err) {
+            $err_code = method_exists($response, 'get_error_code') ? $response->get_error_code() : 'request_error';
             $err_msg = method_exists($response, 'get_error_message') ? $response->get_error_message() : 'Request failed.';
-            if (is_callable('wp_die')) { call_user_func('wp_die', json_encode(array('success' => false, 'message' => $err_msg))); }
+
+            // Classify common WP HTTP error scenarios for clearer guidance
+            $classification = 'network_error';
+            $hint = '';
+            $lmsg = strtolower((string) $err_msg);
+            if (strpos($lmsg, 'timed out') !== false || $err_code === 'connect_timeout' || $err_code === 'http_request_timeout') {
+                $classification = 'timeout';
+                $hint = 'The request timed out. Check server availability, firewall, or increase timeout.';
+            } elseif (strpos($lmsg, 'ssl') !== false || strpos($lmsg, 'certificate') !== false) {
+                $classification = 'ssl_error';
+                $hint = 'SSL handshake/verification failed. Ensure a valid HTTPS certificate chain.';
+            } elseif (strpos($lmsg, 'could not resolve host') !== false || strpos($lmsg, 'name or service not known') !== false || strpos($lmsg, 'dns') !== false) {
+                $classification = 'dns_error';
+                $hint = 'DNS resolution failed. Verify the domain or DNS configuration.';
+            }
+
+            $payload = array(
+                'success' => false,
+                'message' => $err_msg,
+                'latency' => $latency,
+                'details' => array(
+                    'error_type' => $classification,
+                    'error_code' => $err_code,
+                    'hint' => $hint
+                )
+            );
+            if (is_callable('wp_die')) { call_user_func('wp_die', json_encode($payload)); }
             return;
         }
 
         $response_code = is_callable('wp_remote_retrieve_response_code') ? call_user_func('wp_remote_retrieve_response_code', $response) : 0;
+        $response_body = is_callable('wp_remote_retrieve_body') ? call_user_func('wp_remote_retrieve_body', $response) : '';
+        $response_msg = is_callable('wp_remote_retrieve_response_message') ? call_user_func('wp_remote_retrieve_response_message', $response) : '';
+
+        // Try parse JSON body for backend-provided message or error
+        $body_json = null;
+        $body_message = '';
+        if (is_string($response_body) && $response_body !== '') {
+            $decoded = json_decode($response_body, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $body_json = $decoded;
+                if (isset($decoded['message']) && is_string($decoded['message'])) {
+                    $body_message = $decoded['message'];
+                } elseif (isset($decoded['error']) && is_string($decoded['error'])) {
+                    $body_message = $decoded['error'];
+                } elseif (isset($decoded['status']) && is_string($decoded['status'])) {
+                    $body_message = 'Status: ' . $decoded['status'];
+                }
+            }
+        }
 
         if ($response_code >= 200 && $response_code < 300) {
             $msg = is_callable('__') ? call_user_func('__', 'Backend test successful! Latency: %dms', 'scanandpay-n8n') : 'Backend test successful! Latency: %dms';
-            if (is_callable('wp_die')) { call_user_func('wp_die', json_encode(array('success' => true, 'message' => sprintf($msg, $latency), 'latency' => $latency))); }
+            $success_message = sprintf($msg, $latency);
+            if (!empty($body_message)) {
+                $success_message .= ' — ' . $body_message;
+            }
+            if (is_callable('wp_die')) { call_user_func('wp_die', json_encode(array('success' => true, 'message' => $success_message, 'latency' => $latency))); }
             return;
         } else {
-            $msg = is_callable('__') ? call_user_func('__', 'Backend returned status code: %d', 'scanandpay-n8n') : 'Backend returned status code: %d';
-            if (is_callable('wp_die')) { call_user_func('wp_die', json_encode(array('success' => false, 'message' => sprintf($msg, $response_code)))); }
+            // Construct detailed error context
+            $category = 'http_error';
+            $hint = '';
+            switch ((int) $response_code) {
+                case 400:
+                    $category = 'bad_request';
+                    $hint = '400 Bad Request: backend rejected the payload. Check required headers and payload format.';
+                    break;
+                case 401:
+                case 403:
+                    $category = 'auth_error';
+                    $hint = 'Authentication failed: verify shared secret/signature and backend auth logic.';
+                    break;
+                case 404:
+                    $category = 'not_found';
+                    $hint = 'Endpoint not found: verify the URL path and route configuration.';
+                    break;
+                case 408:
+                case 504:
+                    $category = 'timeout';
+                    $hint = 'Gateway timeout: backend took too long to respond.';
+                    break;
+                case 429:
+                    $category = 'rate_limited';
+                    $hint = 'Rate limited: slow down requests or adjust backend limits.';
+                    break;
+                default:
+                    if ($response_code >= 500) {
+                        $category = 'upstream_error';
+                        $hint = 'Server error from backend. Check backend logs.';
+                    }
+                    break;
+            }
+
+            // Body excerpt (first 300 chars) to avoid large/PII-heavy content
+            $excerpt = '';
+            if (is_string($response_body) && $response_body !== '') {
+                $excerpt = function_exists('mb_substr') ? mb_substr($response_body, 0, 300) : substr($response_body, 0, 300);
+            }
+
+            $default_fmt = is_callable('__') ? call_user_func('__', 'Backend returned status code: %d', 'scanandpay-n8n') : 'Backend returned status code: %d';
+            $base_message = sprintf($default_fmt, $response_code);
+            if (!empty($response_msg)) {
+                $base_message .= ' (' . $response_msg . ')';
+            }
+            if (!empty($body_message)) {
+                $base_message .= ' — ' . $body_message;
+            }
+
+            $payload = array(
+                'success' => false,
+                'message' => $base_message,
+                'latency' => $latency,
+                'details' => array(
+                    'category' => $category,
+                    'hint' => $hint,
+                    'status_code' => $response_code,
+                    'body_excerpt' => $excerpt
+                )
+            );
+            if (is_callable('wp_die')) { call_user_func('wp_die', json_encode($payload)); }
             return;
         }
     }

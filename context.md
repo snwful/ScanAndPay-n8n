@@ -29,15 +29,23 @@ Desired Changes
 
 Roadmap
 
-- Short term: Use n8n IMAP/email alert parsing to verify incoming funds before relying on slips; document the flow and security controls.
+- Short term: Use n8n IMAP/email alert parsing or Android (Tasker) notification/SMS forwarding to verify incoming funds before relying on slips; document the flow, security (HTTPS/HMAC), and reliability (battery, retries, de-dup).
 - Medium term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both backends.
 - Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.
+
+## Android Forwarder (Tasker) Architecture
+
+Android(Tasker) captures bank/Stripe notifications or SMS and forwards them to the backend (n8n/Laravel) via HTTPS. The plugin remains unchanged and still calls `/verify-slip`; the backend uses recent forwarded alerts to decide `approved|rejected` according to the unified contract.
+
+- Headers: `X-Device-Id`, `X-Secret` or `X-Signature` (HMAC of `${timestamp}\n${sha256(body)}`)
+- Body (JSON example): `{"source":"android-tasker","app":"%an","title":"%ntitle","text":"%ntext","posted_at":"%DATE %TIME","nid":"%nid"}`
+- Backend responsibilities: verify secret/HMAC, parse amount/reference via regex, de-duplicate (nid+timestamp or content hash), cache recent transactions (e.g., 10–15 minutes), and answer the plugin with the unified contract.
+- Reliability: disable battery optimizations on the device, allow background activity, implement retries/backoff and offline queue where possible, and minimize/mask PII in logs.
 
 ## Out of Scope (by design)
 - Admin re-verify actions and metabox UI.
 - Order list status column.
 - Pending state and scheduled re-checks.
-- Background status polling endpoints.
 
 ## Verification Backend Adapter Contract
 Any backend (n8n/Laravel) must return a uniform JSON object:

@@ -26,6 +26,19 @@ Additional Focus Areas (Upcoming Work)
 - Backend Adapter Decision:
   - Compare n8n vs Laravel using unified contract `{ status, message?, approved_amount?, reference_id? }`.
   - HMAC signing, HTTPS with SSL verification, and reasonable timeouts/retries on both.
+
+Tasker Tester Checklist (Field Tests)
+
+- Device prep: disable battery optimizations for Tasker, allow background activity, grant Notification Listener/SMS read (if used), and ensure background data is not restricted.
+- Forwarding/HMAC: trigger a real or test bank notification; confirm Tasker fires and POSTs over HTTPS with `X-Secret` or `X-Signature` and timestamp.
+- Offline/retry: enable airplane mode, generate an event, then go online; verify queued delivery, successful retry, and no duplicate records on backend.
+- De-dup: send the same notification twice; backend caches once (e.g., by `nid+posted_at` or content hash) and responds idempotently.
+- Parsing: verify amount/reference extraction from common Thai bank messages; include edge cases like commas/decimals and localized currency.
+- Time window: ensure matches only within configured window (e.g., 10–15 minutes); outside window returns no match message.
+- Error handling surfaced to admin Test Backend: invalid/missing signature (401/403), parse failure, no matching transaction, backend timeout, 4xx/5xx.
+- PII masking: confirm logs and error messages redact names/account numbers; avoid storing raw SMS bodies long-term.
+- Correlation: `X-Correlation-ID` propagates from plugin to backend logs for traceability.
+
 - Security & Anti-reuse:
   - Optional slip hash policy prevents reuse across orders without false positives.
   - PII masking in logs and strict server-side file validation.

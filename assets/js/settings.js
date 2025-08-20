@@ -125,10 +125,32 @@
                             .html('✓ ' + (response.message || response.data?.message || 'Success'))
                             .show();
                     } else {
+                        // Build detailed error output
+                        let html = '✗ ' + (response.message || response.data?.message || san8n_settings?.i18n?.test_failed || 'Test failed');
+                        const d = response.details || response.data?.details;
+                        const latency = response.latency || response.data?.latency;
+                        const blocks = [];
+                        if (d) {
+                            const type = d.error_type || d.category;
+                            if (type) blocks.push('<div><strong>Type:</strong> ' + String(type) + '</div>');
+                            if (d.status_code) blocks.push('<div><strong>HTTP:</strong> ' + String(d.status_code) + '</div>');
+                            if (d.hint) blocks.push('<div><em>' + String(d.hint) + '</em></div>');
+                            if (d.body_excerpt) {
+                                let excerpt = String(d.body_excerpt);
+                                if (excerpt.length > 300) excerpt = excerpt.slice(0, 300) + '…';
+                                blocks.push('<pre style="white-space:pre-wrap; max-height:140px; overflow:auto; background:#fff; border:1px solid #eee; padding:6px; margin-top:6px;">' + excerpt.replace(/[<>]/g, '') + '</pre>');
+                            }
+                        }
+                        if (latency) blocks.push('<div><strong>Latency:</strong> ' + String(latency) + 'ms</div>');
+
+                        if (blocks.length) {
+                            html += '<div style="margin-top:6px;">' + blocks.join('') + '</div>';
+                        }
+
                         $result
                             .removeClass('san8n-test-success')
                             .addClass('san8n-test-error')
-                            .html('✗ ' + (response.message || response.data?.message || san8n_settings?.i18n?.test_failed || 'Test failed'))
+                            .html(html)
                             .show();
                     }
                 },

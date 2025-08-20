@@ -5,6 +5,7 @@ Static QR checkout for WooCommerce with inline slip verification.
 ## Overview
 - Displays a static QR placeholder image configured via the WordPress Media Library (with a bundled SVG fallback).
 - Customers upload a payment slip; the plugin verifies it via a selectable backend service (n8n default; Laravel optional) using a unified contract, then updates the order on approval.
+- Supports Android Tasker-based notification/SMS forwarding to your backend (n8n/Laravel) for verification; the WooCommerce plugin interface stays unchanged and still calls `/verify-slip`.
 
 ## Requirements
 - WordPress 6.0+ and PHP 8.0+
@@ -32,7 +33,7 @@ See `readme.txt` for changelog and detailed instructions.
 
 ## Roadmap
 
-- Short term: Use n8n IMAP/email alert parsing to verify incoming funds before relying on slips; document the flow and security controls.
+- Short term: Use n8n IMAP/email alert parsing or Android (Tasker) notification/SMS forwarding to verify incoming funds; document flow, security (HTTPS/HMAC), and reliability (battery, retries, de-dup).
 - Medium term: Maintain optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both backends.
 - Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.
 
@@ -62,6 +63,16 @@ See `readme.txt` for changelog and detailed instructions.
 - Amount: Pro (Laravel) requires exact match using unique-amount suffix; Standard (n8n) may allow small tolerance if enabled.
 - Idempotency: dedupe via email Message-ID/reference; pass through `X-Correlation-ID` for tracing.
 - Outcome: backend returns only `approved` or `rejected` with optional `reference_id`, `approved_amount`, `message`.
+
+## Android Forwarder (Tasker)
+
+Android Tasker can forward bank/Stripe notifications or SMS to your backend (n8n/Laravel) over HTTPS. The plugin remains unchanged and still calls `/verify-slip`; the backend uses recent forwarded alerts to decide `approved|rejected` per the unified contract.
+
+- Headers from Tasker → backend: `X-Device-Id`, `X-Secret` or `X-Signature` (HMAC of `${timestamp}\n${sha256(body)}`), optional `X-Timestamp`.
+- Payload example (JSON):
+  `{"source":"android-tasker","app":"%an","title":"%ntitle","text":"%ntext","posted_at":"%DATE %TIME","nid":"%nid"}`
+- Backend responsibilities: verify secret/HMAC, parse amount/reference via regex, de-duplicate (nid+timestamp or content hash), cache recent transactions (10–15 minutes), and respond via the unified contract when called by `/verify-slip`.
+- Reliability: disable battery optimizations for Tasker, allow background activity, implement retries/backoff and offline queue, mask PII in logs, enforce HTTPS with SSL verification.
 
 ## Optional Enhancements (Out of Scope)
 

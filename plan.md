@@ -2,7 +2,7 @@
 
 ## Goal
 Finalize docs and execute a phased roadmap:
-- Short: use n8n IMAP/email alerts to verify incoming funds before relying on slips.
+- Short: use n8n IMAP/email alerts or Android (Tasker) notification/SMS forwarding to verify incoming funds before relying on slips.
 - Mid: add optional Laravel API adapter selectable in settings; standardize response contract.
 - Long: implement slipless unique-amount + email/SMS alert + webhook matching via Laravel.
 
@@ -26,6 +26,7 @@ Finalize docs and execute a phased roadmap:
 - `POST /wp-json/wc-scanandpay/v1/verify-slip` forwards to chosen backend and updates order based on response.
 - Admin can set QR image via Media Library and configure webhook URL/secret.
 - Documentation updated (README.md, readme.txt, context.md, instructions.md, evaluation.md, feedback.md, AGENTS.md).
+- Android Forwarder (Tasker) documented with backend receiving workflow (n8n spec: headers/signature, parse, de-dup, cache) and evaluation checks updated.
 - PHPCS passes (where applicable) and no console errors on checkout.
 
 ## Verification Contract (Request & Headers)
@@ -35,7 +36,7 @@ Finalize docs and execute a phased roadmap:
 - Adapter reference: `includes/class-san8n-verifier.php` (factory + n8n/Laravel implementations).
 
 ## Next
-- Short: document and wire n8n IMAP/email parsing → backend verification; add UI copy and countdown guidance.
+- Short: document and wire n8n IMAP/email parsing or Android (Tasker) forwarding → backend verification; add UI copy and countdown guidance.
 - Mid: implement Laravel adapter option and shared response schema; expose a settings toggle.
 - Long: design slipless unique-amount flow, idempotent webhook, manual review queue; plan migration steps.
 
@@ -56,6 +57,12 @@ Sprint 2 — Laravel Adapter + Tests
 - [x] Settings toggle to choose backend (n8n|Laravel) and configure endpoint/secret.
 - [x] Implement Laravel adapter using same contract; add filters for timeout/retry.
 - [ ] Tests: unit/integration for REST adapter; manual regression on Classic/Blocks.
+
+Sprint 2a — Android Forwarder (Tasker)
+- [x] Document Tasker flow in AGENTS.md and context.md (architecture, headers, payload example, reliability).
+- [x] Add n8n workflow spec (webhook → HMAC verify → parse → de-dup/cache → match) in instructions.md/evaluation.md.
+- [ ] Update readme.txt with a brief Android Forwarder (Tasker) section and roadmap mention.
+- [ ] Add tester checklist in feedback.md for battery optimization, offline/retry, duplicate handling.
 
 Sprint 3 — Optional Enhancements
 - [ ] Anti-reuse: compute/store slip hash to block reuse across orders.

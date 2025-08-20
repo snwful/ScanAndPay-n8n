@@ -78,8 +78,27 @@ Maintain backwards‑compatible hooks and filters where possible. If you remove 
 - Headers: `X-PromptPay-Timestamp` (unix), `X-PromptPay-Signature` = HMAC-SHA256 of `${timestamp}\n${sha256(body)}`, `X-PromptPay-Version: 1.0`, `X-Correlation-ID`.
 - Adapter reference: `includes/class-san8n-verifier.php` (`SAN8N_Verifier_Factory`, `SAN8N_Verifier_N8n`, `SAN8N_Verifier_Laravel`).
 
+## Android Forwarder (Tasker)
+
+Android Tasker can forward bank/Stripe notifications or SMS to your backend (n8n/Laravel) over HTTPS. The WooCommerce plugin remains unchanged and still calls `/verify-slip`; the backend uses recent forwarded alerts to decide `approved|rejected` following the unified contract.
+
+- Headers from Tasker → backend: `X-Device-Id`, `X-Secret` or `X-Signature` (HMAC of `${timestamp}\n${sha256(body)}`), optional `X-Timestamp`.
+- Payload example (JSON):
+  `{"source":"android-tasker","app":"%an","title":"%ntitle","text":"%ntext","posted_at":"%DATE %TIME","nid":"%nid"}`
+- Backend responsibilities: verify secret/HMAC, parse amount/reference via regex, de-duplicate (nid+timestamp or content hash), cache recent transactions (10–15 minutes), and respond via the unified contract when called by `/verify-slip`.
+- Reliability: disable battery optimizations for Tasker, allow background activity, implement retries/backoff and offline queue, mask PII in logs, enforce HTTPS with SSL verification.
+
+### n8n Workflow Spec (Guide)
+
+1) Webhook (POST) node receives Tasker JSON; require HTTPS.
+2) If using HMAC: Function node computes `sha256(body)`, concatenates with timestamp, verifies signature header.
+3) Parse node (Function/Switch) extracts amount/reference/timestamp using regex appropriate to your bank SMS/notification formats.
+4) Data Store (or Redis/Memory) node caches recent transactions keyed by `nid+posted_at` and normalized amount.
+5) De-dup check: skip insert if seen within window; update last_seen timestamp.
+6) Verification endpoint flow: when `/verify-slip` hits your verification branch, match order total and time window against cached entries; return `{ status, message?, approved_amount?, reference_id? }`.
+
 Notes / Roadmap (do not implement in this iteration):
-- Short term: Use n8n IMAP/email alert parsing to verify incoming funds; document the flow and security controls.
+- Short term: Use n8n IMAP/email alert parsing or Android (Tasker) notification/SMS forwarding to verify incoming funds; document flow, security (HTTPS/HMAC), and reliability (battery, retries, de-dup).
 - Medium term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both backends under checkout-only flow.
 - Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.
 

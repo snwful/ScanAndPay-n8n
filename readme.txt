@@ -150,6 +150,15 @@ Unified response contract expected from any backend:
 - Idempotency: deduplicate by email Message-ID/reference; propagate `X-Correlation-ID` for tracing.
 - Outcome: backend returns `approved` or `rejected` only, with optional `reference_id`, `approved_amount`, `message`.
 
+== Android Forwarder (Tasker) ==
+
+Android Tasker can forward bank/Stripe notifications or SMS to your backend (n8n/Laravel) over HTTPS. The WooCommerce plugin remains unchanged and still calls `/verify-slip`; the backend uses recent forwarded alerts to decide `approved|rejected` per the unified contract.
+
+- Headers from Tasker → backend: `X-Device-Id`, `X-Secret` or `X-Signature` (HMAC of `${timestamp}\n${sha256(body)}`), optional `X-Timestamp`.
+- Payload example (JSON): `{"source":"android-tasker","app":"%an","title":"%ntitle","text":"%ntext","posted_at":"%DATE %TIME","nid":"%nid"}`
+- Backend responsibilities: verify secret/HMAC, parse amount/reference via regex, de-duplicate (nid+timestamp or content hash), cache recent transactions (10–15 minutes), and respond via the unified contract when called by `/verify-slip`.
+- Reliability: disable battery optimizations for Tasker, allow background activity, implement retries/backoff and offline queue, mask PII in logs, enforce HTTPS with SSL verification.
+
 == Optional Enhancements ==
 
 - Progress UI and retry hints during verification
@@ -212,7 +221,7 @@ Yes, administrators can manually approve or reject payments from the order edit 
 
 == Roadmap ==
 
-- Short term: Use n8n IMAP/email alert parsing to verify incoming funds before relying on slips; document the flow and security controls.
+- Short term: Use n8n IMAP/email alert parsing or Android (Tasker) notification/SMS forwarding to verify incoming funds; document flow, security (HTTPS/HMAC), and reliability (battery, retries, de-dup).
 - Medium term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both backends.
 - Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.
 

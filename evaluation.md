@@ -38,6 +38,15 @@ Outbound verifier request (adapter):
 - Outbound headers include `X-PromptPay-Timestamp`, `X-PromptPay-Signature` (HMAC-SHA256 of `${timestamp}\n${sha256(body)}`), `X-PromptPay-Version: 1.0`, and `X-Correlation-ID`.
 - HTTPS required with SSL verification; request body is multipart with `slip_image`, `order` JSON, and `session_token`.
 
+Tasker Forwarder Acceptance (Backend):
+
+- n8n (or Laravel) can receive HTTPS POSTs from Android Tasker containing minimal notification/SMS fields (`app`, `title`, `text`, `posted_at`, `nid`).
+- If enabled, HMAC or shared secret verification is performed on incoming Tasker requests (e.g., `X-Secret` or `X-Signature` based on `${timestamp}\n${sha256(body)}`).
+- Backend parses amount/reference/timestamp via regex and stores a recent cache (e.g., 10–15 minutes) for matching.
+- Backend de-duplicates forwarded alerts (e.g., `nid+posted_at` or content hash).
+- When `/verify-slip` calls the backend, it responds using the unified contract `{ status: approved|rejected, message?, approved_amount?, reference_id? }` based on the cached alerts and matching rules.
+- Failure cases return informative errors: missing/invalid signature, no matching transaction in window, parse failure, backend timeout.
+
 Code Quality
 
 The code compiles without syntax or fatal errors. All referenced functions, classes and variables exist.
@@ -70,7 +79,7 @@ Error messages remain informative and are translated via language files where po
 
 Roadmap Alignment
 
-- Short term: Use n8n IMAP/email alert parsing to verify incoming funds before relying on slips; document the flow and security controls.
+- Short term: Use n8n IMAP/email alert parsing or Android (Tasker) notification/SMS forwarding to verify incoming funds; document flow, security (HTTPS/HMAC), and reliability (battery, retries, de-dup).
 - Medium term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both backends.
 - Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.
 
