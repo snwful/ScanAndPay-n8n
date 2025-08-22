@@ -125,6 +125,7 @@ final class SAN8N_Blocks_Integration extends SAN8N_AbstractPaymentMethodType_Run
                 'show_express_only_when_approved' => $this->get_setting('show_express_only_when_approved', 'yes') === 'yes',
                 'prevent_double_submit_ms' => intval($this->get_setting('prevent_double_submit_ms', '1500')),
                 'max_file_size' => intval($this->get_setting('max_file_size', '5')) * 1024 * 1024,
+                'verify_timeout_ms' => intval($this->get_setting('verify_timeout_ms', '9000')),
                 'qr_placeholder' => $qr_url
             ),
             'rest_url' => is_callable('rest_url') ? call_user_func('rest_url', SAN8N_REST_NAMESPACE) : '',
@@ -140,6 +141,7 @@ final class SAN8N_Blocks_Integration extends SAN8N_AbstractPaymentMethodType_Run
                 'processing_order' => $this->tr('Processing order...'),
                 'rejected' => $this->tr('Payment rejected. Please try again.'),
                 'error' => $this->tr('Verification error. Please try again.'),
+                'timeout' => $this->tr('Verification timed out. Please try again.'),
                 'file_too_large' => $this->tr('File size exceeds limit.'),
                 'invalid_file_type' => $this->tr('Invalid file type. Please upload JPG or PNG.'),
                 'upload_required' => $this->tr('Please upload a payment slip.'),

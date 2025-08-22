@@ -135,6 +135,10 @@ const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
         formData.append('order_total', cartTotal);
 
         try {
+            const controller = new AbortController();
+            const timeoutMs = parseInt((settings.settings && settings.settings.verify_timeout_ms) || 9000, 10);
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
             const response = await fetch(settings.rest_url + '/verify-slip', {
                 method: 'POST',
                 headers: {
@@ -142,6 +146,7 @@ const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
                 },
                 credentials: 'same-origin',
                 body: formData,
+                signal: controller.signal,
             });
 
             const data = await response.json();
@@ -154,8 +159,13 @@ const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
             }
         } catch (error) {
             setVerificationStatus('error');
-            setStatusMessage(settings.i18n.error);
+            if (error && error.name === 'AbortError') {
+                setStatusMessage(settings.i18n.timeout || settings.i18n.error);
+            } else {
+                setStatusMessage(settings.i18n.error);
+            }
         } finally {
+            try { if (typeof timeoutId !== 'undefined') { clearTimeout(timeoutId); } } catch (e) {}
             setIsVerifying(false);
         }
     }, [slipFile, cartTotal, sessionToken]);

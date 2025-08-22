@@ -128,6 +128,7 @@
                 headers: {
                     'X-WP-Nonce': san8n_params.nonce
                 },
+                timeout: parseInt(san8n_params.verify_timeout_ms || 9000, 10),
                 success: function(response) {
                     if (response.status === 'approved') {
                         SAN8N_Checkout.handleApproval(response);
@@ -135,9 +136,11 @@
                         SAN8N_Checkout.handleRejection(response);
                     }
                 },
-                error: function(xhr) {
+                error: function(xhr, textStatus) {
                     let message = san8n_params.i18n.error;
-                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                    if (textStatus === 'timeout') {
+                        message = san8n_params.i18n.timeout || message;
+                    } else if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
                         message = xhr.responseJSON.message;
                     }
                     SAN8N_Checkout.showError(message);

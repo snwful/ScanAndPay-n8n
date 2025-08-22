@@ -35,6 +35,7 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
     private $allow_blocks_autosubmit_experimental;
     private $show_express_only_when_approved;
     private $prevent_double_submit_ms;
+    private $verify_timeout_ms;
     private $max_file_size;
     private $allowed_file_types;
     private $retention_days;
@@ -67,6 +68,7 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
         $this->allow_blocks_autosubmit_experimental = $this->get_option('allow_blocks_autosubmit_experimental', 'no') === 'yes';
         $this->show_express_only_when_approved = $this->get_option('show_express_only_when_approved', 'yes') === 'yes';
         $this->prevent_double_submit_ms = intval($this->get_option('prevent_double_submit_ms', '1500'));
+        $this->verify_timeout_ms = intval($this->get_option('verify_timeout_ms', '9000'));
 
         $this->max_file_size = intval($this->get_option('max_file_size', '5')) * 1024 * 1024; // Convert MB to bytes
         $this->allowed_file_types = array('jpg', 'jpeg', 'png');
@@ -187,6 +189,14 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                 'default' => '1500',
                 'desc_tip' => true,
                 'custom_attributes' => array('min' => '500', 'max' => '5000')
+            ),
+            'verify_timeout_ms' => array(
+                'title' => $this->tr('Verification Request Timeout (ms)'),
+                'type' => 'number',
+                'description' => $this->tr('Maximum time the browser waits for slip verification before failing. Align with backend timeout (~8000 ms).'),
+                'default' => '9000',
+                'desc_tip' => true,
+                'custom_attributes' => array('min' => '3000', 'max' => '30000', 'step' => '500')
             ),
             'blocks_settings' => array(
                 'title' => $this->tr('Blocks Checkout Settings'),
@@ -439,12 +449,14 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                 'gateway_id' => $this->id,
                 'auto_submit' => $this->auto_place_order_classic,
                 'prevent_double_submit_ms' => $this->prevent_double_submit_ms,
+                'verify_timeout_ms' => $this->verify_timeout_ms,
                 'i18n' => array(
                     'verifying' => (is_callable('__') ? call_user_func('__', 'Verifying payment...', 'scanandpay-n8n') : 'Verifying payment...'),
                     'approved' => (is_callable('__') ? call_user_func('__', 'Payment approved! Processing order...', 'scanandpay-n8n') : 'Payment approved! Processing order...'),
                     'rejected' => (is_callable('__') ? call_user_func('__', 'Payment rejected. Please try again.', 'scanandpay-n8n') : 'Payment rejected. Please try again.'),
                     'error' => (is_callable('__') ? call_user_func('__', 'Verification error. Please try again.', 'scanandpay-n8n') : 'Verification error. Please try again.'),
                     'service_unavailable' => (is_callable('__') ? call_user_func('__', 'Verification service unavailable. Please try again.', 'scanandpay-n8n') : 'Verification service unavailable. Please try again.'),
+                    'timeout' => (is_callable('__') ? call_user_func('__', 'Verification timed out. Please try again.', 'scanandpay-n8n') : 'Verification timed out. Please try again.'),
                     'file_too_large' => (is_callable('__') ? call_user_func('__', 'File size exceeds limit.', 'scanandpay-n8n') : 'File size exceeds limit.'),
                     'invalid_file_type' => (is_callable('__') ? call_user_func('__', 'Invalid file type. Please upload JPG or PNG.', 'scanandpay-n8n') : 'Invalid file type. Please upload JPG or PNG.'),
                     'upload_required' => (is_callable('__') ? call_user_func('__', 'Please upload a payment slip.', 'scanandpay-n8n') : 'Please upload a payment slip.'),
