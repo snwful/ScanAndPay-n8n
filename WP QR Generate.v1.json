@@ -1,0 +1,132 @@
+{
+  "name": "WP QR Generate v1 - HMAC + EMV PromptPay + Postgres Session",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wp/qr-generate",
+        "responseMode": "responseNode",
+        "options": { "rawBody": true }
+      },
+      "name": "WH WP QR Generate",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "notesInFlow": true,
+      "notes": "New endpoint for WP to request EMV PromptPay QR generation with 10m TTL."
+    },
+    {
+      "parameters": {
+        "keepOnlySet": false,
+        "values": { "string": [ { "name": "secret", "value": "REPLACE_WP_SHARED_SECRET" } ] }
+      },
+      "name": "Set Secret",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [520, 300],
+      "notesInFlow": true,
+      "notes": "WordPress → n8n shared secret (Woo settings: shared_secret)."
+    },
+    {
+      "parameters": {
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            { "name": "pp_type", "value": "mobile" },
+            { "name": "pp_value", "value": "REPLACE_PROMPTPAY_TARGET" },
+            { "name": "merchant_name", "value": "REPLACE_MERCHANT_NAME" },
+            { "name": "merchant_city", "value": "Bangkok" },
+            { "name": "currency", "value": "THB" }
+          ],
+          "number": [
+            { "name": "ttl_sec", "value": 600 },
+            { "name": "unique_cents_mod", "value": 0 }
+          ],
+          "boolean": [ { "name": "use_unique_cents", "value": false } ]
+        }
+      },
+      "name": "Set PromptPay Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [760, 300],
+      "notesInFlow": true,
+      "notes": "Configure PromptPay target and policy. Set pp_value to phone (recommended) or national ID. Set use_unique_cents=true and unique_cents_mod=10 to vary 0..9 satang."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verify HMAC: signature = HMAC_SHA256(timestamp + \n + sha256(rawBody)) using pure JS (no external libs)\nfunction toBytes(str){ if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(str); var e=[]; for (var i=0;i<str.length;i++){ var c=str.charCodeAt(i); if (c<128){e.push(c);} else if (c<2048){ e.push((c>>6)|192,(c&63)|128);} else if (c<55296||c>=57344){ e.push((c>>12)|224,((c>>6)&63)|128,(c&63)|128);} else { i++; c=65536+(((c&1023)<<10)|(str.charCodeAt(i)&1023)); e.push((c>>18)|240,((c>>12)&63)|128,((c>>6)&63)|128,(c&63)|128);} } return new Uint8Array(e); }\nfunction bytesToHex(b){ var s='',h='0123456789abcdef'; for (var i=0;i<b.length;i++){ s+=h[(b[i]>>>4)&15]+h[b[i]&15]; } return s; }\nfunction rotr(x,n){return (x>>>n)|(x<<(32-n));}\nfunction sha256(bytes){ var K=[1116352408,1899447441,3049323471,3921009573,961987163,1508970993,2453635748,2870763221,3624381080,310598401,607225278,1426881987,1925078388,2162078206,2614888103,3248222580,3835390401,4022224774,264347078,604807628,770255983,1249150122,1555081692,1996064986,2554220882,2821834349,2952996808,3210313671,3336571891,3584528711,113926993,338241895,666307205,773529912,1294757372,1396182291,1695183700,1986661051,2177026350,2456956037,2730485921,2820302411,3259730800,3345764771,3516065817,3600352804,4094571909,275423344,430227734,506948616,659060556,883997877,958139571,1322822218,1537002063,1747873779,1955562222,2024104815,2227730452,2361852424,2428436474,2756734187,3204031479,3329325298]; function S0(x){return rotr(x,2)^rotr(x,13)^rotr(x,22);} function S1(x){return rotr(x,6)^rotr(x,11)^rotr(x,25);} function s0(x){return rotr(x,7)^rotr(x,18)^(x>>>3);} function s1(x){return rotr(x,17)^rotr(x,19)^(x>>>10);} function Ch(x,y,z){return (x & y) ^ (~x & z);} function Maj(x,y,z){return (x & y) ^ (x & z) ^ (y & z);} var l=bytes.length; var ml=l*8; var withOne=new Uint8Array(l+1); withOne.set(bytes); withOne[l]=0x80; var padLen=((56-(withOne.length%64))+64)%64; var padded=new Uint8Array(withOne.length+padLen+8); padded.set(withOne); var dv=new DataView(padded.buffer); dv.setUint32(padded.length-8, Math.floor(ml/Math.pow(2,32))); dv.setUint32(padded.length-4, ml>>>0); var H=[1779033703,3144134277,1013904242,2773480762,1359893119,2600822924,528734635,1541459225]; var w=new Uint32Array(64); for(var i=0;i<padded.length;i+=64){ for(var t=0;t<16;t++){ w[t]=(padded[i+4*t]<<24)|(padded[i+4*t+1]<<16)|(padded[i+4*t+2]<<8)|(padded[i+4*t+3]); } for(var t=16;t<64;t++){ w[t]=(s1(w[t-2]) + w[t-7] + s0(w[t-15]) + w[t-16])>>>0; } var a=H[0],b=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7]; for(var t=0;t<64;t++){ var T1=(h + S1(e) + Ch(e,f,g) + K[t] + w[t])>>>0; var T2=(S0(a) + Maj(a,b,c))>>>0; h=g; g=f; f=e; e=(d+T1)>>>0; d=c; c=b; b=a; a=(T1+T2)>>>0; } H[0]=(H[0]+a)>>>0; H[1]=(H[1]+b)>>>0; H[2]=(H[2]+c)>>>0; H[3]=(H[3]+d)>>>0; H[4]=(H[4]+e)>>>0; H[5]=(H[5]+f)>>>0; H[6]=(H[6]+g)>>>0; H[7]=(H[7]+h)>>>0; } var out=new Uint8Array(32); for (var i2=0;i2<8;i2++){ out[4*i2]=(H[i2]>>>24)&255; out[4*i2+1]=(H[i2]>>>16)&255; out[4*i2+2]=(H[i2]>>>8)&255; out[4*i2+3]=(H[i2])&255; } return out; }\nfunction hmacSha256(keyBytes, msgBytes){ function xor(a,b){ var out=new Uint8Array(a.length); for(var i=0;i<a.length;i++){ out[i]=a[i]^b[i]; } return out; } var block=64; var k=keyBytes; if (k.length>block) k=sha256(k); if (k.length<block){ var tmp=new Uint8Array(block); tmp.set(k); k=tmp; } var okey=new Uint8Array(block), ikey=new Uint8Array(block); for (var i=0;i<block;i++){ okey[i]=0x5c; ikey[i]=0x36; } okey=xor(okey,k); ikey=xor(ikey,k); var inner=sha256(new Uint8Array([...ikey,...msgBytes])); var h=sha256(new Uint8Array([...okey,...inner])); return h; }\nconst headers=$json.headers||{}; const ts=String(headers['X-PromptPay-Timestamp']||headers['x-prompptpay-timestamp']||headers['x-promptpay-timestamp']||''); const sig=String(headers['X-PromptPay-Signature']||headers['x-promptpay-signature']||''); const raw=String($json.rawBody||''); const bodyHashHex=bytesToHex(sha256(toBytes(raw))); const toSign=ts + '\n' + bodyHashHex; const expectHex=bytesToHex(hmacSha256(toBytes($item(0).$node['Set Secret'].json.secret||''), toBytes(toSign))); let auth_ok=false; if (sig && ts){ auth_ok = (sig.toLowerCase()===expectHex); } let body={}; try{ body=JSON.parse(raw); }catch(e){ body={}; } return [{ json: { auth_ok, headers, body, rawBody: raw } }];"
+      },
+      "name": "Verify HMAC",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": { "conditions": { "boolean": [ { "value1": "={{$json.auth_ok}}", "operation": "isTrue" } ] } },
+      "name": "IF Auth OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1240, 300]
+    },
+    {
+      "parameters": { "responseCode": 401, "responseBody": "{\"ok\":false,\"error\":\"unauthorized\"}" },
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1480, 440]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Map input, generate session + amount variant\nfunction randHex(n){ const chars='abcdef0123456789'; let s=''; for(let i=0;i<n;i++){ s+=chars[Math.floor(Math.random()*chars.length)]; } return s; }\nfunction hash32(s){ let h=2166136261>>>0; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }\nconst body=$json.body||{}; const order = body.order||{}; const order_id = body.order_id ?? order.id ?? null; const amount_in = Number(body.amount ?? order.total ?? 0); const currency = String(body.currency ?? order.currency ?? $item(0).$node['Set PromptPay Config'].json.currency || 'THB'); const ttl = Number($item(0).$node['Set PromptPay Config'].json.ttl_sec)||600; let session_token = body.session_token ? String(body.session_token) : (randHex(16)); const now = Math.floor(Date.now()/1000); const expires_epoch = now + ttl; const use_unique = !!$item(0).$node['Set PromptPay Config'].json.use_unique_cents; const mod = Number($item(0).$node['Set PromptPay Config'].json.unique_cents_mod)||0; let amount = Number.isFinite(amount_in)? Number(amount_in.toFixed(2)) : 0; let amount_variant = amount; if (use_unique && mod>0){ const h = hash32(session_token) % mod; const cents = h % 100; // 0..(mod-1), still cap to 0..99 just in case\n const baht = Math.floor(amount); amount_variant = Number((baht + (cents/100)).toFixed(2)); } return [{ json: { order_id, amount, amount_variant, currency, session_token, ttl, expires_epoch } }];"
+      },
+      "name": "Build Session",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1480, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build EMV PromptPay payload with CRC16-CCITT\nfunction tlv(id, val){ const len = String(val.length).padStart(2,'0'); return id + len + val; }\nfunction normalizeMobileThailand(v){ let d=String(v||'').replace(/[^0-9]/g,''); if (d.startsWith('0066')) return d; if (d.startsWith('66')) return '0066' + d.slice(2); if (d.startsWith('0')) return '0066' + d.slice(1); return '0066' + d; }\nfunction crc16ccitt(s){ let crc=0xFFFF; for (let i=0;i<s.length;i++){ crc ^= (s.charCodeAt(i) << 8); for (let j=0;j<8;j++){ if (crc & 0x8000){ crc = ((crc << 1) ^ 0x1021) & 0xFFFF; } else { crc = (crc << 1) & 0xFFFF; } } } return crc.toString(16).toUpperCase().padStart(4,'0'); }\nconst cfg = $item(0).$node['Set PromptPay Config'].json; const pp_type = String(cfg.pp_type||'mobile'); const pp_value_raw = String(cfg.pp_value||''); const merchant_name = String(cfg.merchant_name||'MERCHANT'); const merchant_city = String(cfg.merchant_city||'BANGKOK'); const currency = String($json.currency||cfg.currency||'THB'); const amount = Number($json.amount_variant||$json.amount||0).toFixed(2); const poi = '12'; // dynamic QR for fixed amount\nconst maiAID = tlv('00','A000000677010111'); let acctVal='', acctTag='01'; if (pp_type==='mobile'){ acctVal = normalizeMobileThailand(pp_value_raw); acctTag='01'; } else { acctVal = pp_value_raw.replace(/[^0-9]/g,''); acctTag='02'; } const mai = tlv('29', maiAID + tlv(acctTag, acctVal)); const mcc = tlv('52','0000'); const curr = tlv('53','764'); const amt = tlv('54', String(amount)); const country = tlv('58','TH'); const mname = tlv('59', merchant_name.substring(0,25)); const mcity = tlv('60', merchant_city.substring(0,15)); const header = tlv('00','01') + tlv('01', poi); const toCRC = header + mai + mcc + curr + amt + country + mname + mcity + '6304'; const crc = crc16ccitt(toCRC); const emv = toCRC + crc; return [{ json: Object.assign({}, $json, { emv }) }];"
+      },
+      "name": "Build EMV QR",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1720, 180],
+      "notesInFlow": true,
+      "notes": "Set pp_value to PromptPay target. For mobile, include leading 0 (e.g., 0812345678)."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{`INSERT INTO payment_sessions (session_token, order_id, amount, amount_variant, currency, emv_payload, expires_at, created_at, used) VALUES ('${$json.session_token}', ${$json.order_id ? `'${$json.order_id}'` : 'NULL'}, ${$json.amount}, ${$json.amount_variant}, '${$json.currency}', '${$json.emv}', to_timestamp(${$json.expires_epoch}), now(), false) ON CONFLICT (session_token) DO UPDATE SET amount=EXCLUDED.amount, amount_variant=EXCLUDED.amount_variant, currency=EXCLUDED.currency, emv_payload=EXCLUDED.emv_payload, expires_at=EXCLUDED.expires_at, used=EXCLUDED.used;`}}"
+      },
+      "name": "PG Upsert Session",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1960, 180],
+      "notesInFlow": true,
+      "notes": "Set Postgres credentials. Creates/updates session row keyed by session_token."
+    },
+    {
+      "parameters": {
+        "responseCode": 200,
+        "responseBody": "={{ JSON.stringify({ ok: true, session_token: $json.session_token, currency: $json.currency, amount: Number($json.amount), amount_to_pay: Number($json.amount_variant), ttl_sec: $json.ttl, expires_at_epoch: $json.expires_epoch, emv: $json.emv }) }}"
+      },
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2200, 180]
+    }
+  ],
+  "connections": {
+    "WH WP QR Generate": { "main": [[ { "node": "Set Secret", "type": "main", "index": 0 } ]] },
+    "Set Secret": { "main": [[ { "node": "Set PromptPay Config", "type": "main", "index": 0 } ]] },
+    "Set PromptPay Config": { "main": [[ { "node": "Verify HMAC", "type": "main", "index": 0 } ]] },
+    "Verify HMAC": { "main": [[ { "node": "IF Auth OK?", "type": "main", "index": 0 } ]] },
+    "IF Auth OK?": { "main": [ [ { "node": "Build Session", "type": "main", "index": 0 } ], [ { "node": "Respond 401", "type": "main", "index": 0 } ] ] },
+    "Build Session": { "main": [[ { "node": "Build EMV QR", "type": "main", "index": 0 } ]] },
+    "Build EMV QR": { "main": [[ { "node": "PG Upsert Session", "type": "main", "index": 0 } ]] },
+    "PG Upsert Session": { "main": [[ { "node": "Respond 200", "type": "main", "index": 0 } ]] }
+  },
+  "active": true
+}
