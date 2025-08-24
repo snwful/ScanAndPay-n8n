@@ -1,0 +1,230 @@
+{
+    "name": "Tasker Ingest (PromptPay)",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "tasker/ingest",
+          "responseMode": "responseNode",
+          "options": {
+            "rawBody": true
+          }
+        },
+        "id": "Webhook_Tasker",
+        "name": "WH Tasker",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [260, 300]
+      },
+      {
+        "parameters": {
+          "keepOnlySet": false,
+          "values": {
+            "string": [
+              {
+                "name": "secret",
+                "value": "REPLACE_TASKER_SECRET"
+              }
+            ]
+          }
+        },
+        "id": "Set_Secret",
+        "name": "Set Secret",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 2,
+        "position": [520, 300],
+        "notesInFlow": true,
+        "notes": "Put your Tasker→n8n HMAC secret here."
+      },
+      {
+        "parameters": {
+          "jsCode": "// Verify HMAC without require('crypto') using pure JS SHA-256 + HMAC\n// Input: headers[X-PromptPay-Timestamp], headers[X-PromptPay-Signature], rawBody, secret\nfunction toBytes(str){ if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(str); var e=[]; for (var i=0;i<str.length;i++){ var c=str.charCodeAt(i); if (c<128){e.push(c);} else if (c<2048){ e.push((c>>6)|192,(c&63)|128);} else if (c<55296||c>=57344){ e.push((c>>12)|224,((c>>6)&63)|128,(c&63)|128);} else { i++; c=65536+(((c&1023)<<10)|(str.charCodeAt(i)&1023)); e.push((c>>18)|240,((c>>12)&63)|128,((c>>6)&63)|128,(c&63)|128);} } return new Uint8Array(e); }\nfunction bytesToHex(b){ var s='',h='0123456789abcdef'; for (var i=0;i<b.length;i++){ s+=h[(b[i]>>>4)&15]+h[b[i]&15]; } return s; }\nfunction sha256(bytes){ // returns Uint8Array(32)\n  var K=[1116352408,1899447441,3049323471,3921009573,961987163,1508970993,2453635748,2870763221,3624381080,310598401,607225278,1426881987,1925078388,2162078206,2614888103,3248222580,3835390401,4022224774,264347078,604807628,770255983,1249150122,1555081692,1996064986,2554220882,2821834349,2952996808,3210313671,3336571891,3584528711,113926993,338241895,666307205,773529912,1294757372,1396182291,1695183700,1986661051,2177026350,2456956037,2730485921,2820302411,3259730800,3345764771,3516065817,3600352804,4094571909,275423344,430227734,506948616,659060556,883997877,958139571,1322822218,1537002063,1747873779,1955562222,2024104815,2227730452,2361852424,2428436474,2756734187,3204031479,3329325298];\n  function rotr(x,n){return (x>>>n)|(x<<(32-n));}\n  function ch(x,y,z){return (x&y)^(~x&z);} function maj(x,y,z){return (x&y)^(x&z)^(y&z);} function S0(x){return rotr(x,2)^rotr(x,13)^rotr(x,22);} function S1(x){return rotr(x,6)^rotr(x,11)^rotr(x,25);} function s0(x){return rotr(x,7)^rotr(x,18)^(x>>>3);} function s1(x){return rotr(x,17)^rotr(x,19)^(x>>>10);}\n  var l=bytes.length; var ml=l*8; // message length in bits\n  var withOne=new Uint8Array(l+1); withOne.set(bytes); withOne[l]=0x80;\n  var k=((56-(withOne.length%64))+64)%64; var padded=new Uint8Array(withOne.length+k+8); padded.set(withOne);\n  // append length big-endian 64-bit\n  for (var i=0;i<8;i++){ padded[padded.length-1-i]=(ml>>> (8*i)) & 0xff; }\n  var H=[1779033703,3144134277,1013904242,2773480762,1359893119,2600822924,528734635,1541459225];\n  var w=new Array(64);\n  for (var i=0;i<padded.length;i+=64){\n    for (var j=0;j<16;j++){ var idx=i+j*4; w[j]= (padded[idx]<<24)|(padded[idx+1]<<16)|(padded[idx+2]<<8)|(padded[idx+3]); }\n    for (var j=16;j<64;j++){ w[j]=(s1(w[j-2]) + w[j-7] + s0(w[j-15]) + w[j-16])>>>0; }\n    var a=H[0],b=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7];\n    for (var j=0;j<64;j++){ var T1=(h + S1(e) + ch(e,f,g) + K[j] + w[j])>>>0; var T2=(S0(a) + maj(a,b,c))>>>0; h=g; g=f; f=e; e=(d+T1)>>>0; d=c; c=b; b=a; a=(T1+T2)>>>0; }\n    H[0]=(H[0]+a)>>>0; H[1]=(H[1]+b)>>>0; H[2]=(H[2]+c)>>>0; H[3]=(H[3]+d)>>>0; H[4]=(H[4]+e)>>>0; H[5]=(H[5]+f)>>>0; H[6]=(H[6]+g)>>>0; H[7]=(H[7]+h)>>>0;\n  }\n  var out=new Uint8Array(32); for (var i=0;i<8;i++){ out[i*4]=(H[i]>>>24)&255; out[i*4+1]=(H[i]>>>16)&255; out[i*4+2]=(H[i]>>>8)&255; out[i*4+3]=H[i]&255; } return out;\n}\nfunction hmacSha256(keyStr, msgStr){ var block=64; var k=toBytes(keyStr); if (k.length>block) k=sha256(k); var kb=new Uint8Array(block); kb.set(k); var ipad=new Uint8Array(block); var opad=new Uint8Array(block); for (var i=0;i<block;i++){ ipad[i]=kb[i]^0x36; opad[i]=kb[i]^0x5c; } var msg=toBytes(msgStr); var inner=new Uint8Array(ipad.length+msg.length); inner.set(ipad); inner.set(msg,ipad.length); var innerHash=sha256(inner); var outer=new Uint8Array(opad.length+innerHash.length); outer.set(opad); outer.set(innerHash,opad.length); return bytesToHex(sha256(outer)); }\n\nreturn items.map(item => {\n  const h = {};\n  for (const [k, v] of Object.entries(item.json.headers || {})) { h[String(k).toLowerCase()] = String(v); }\n  const tsStr = h['x-promptpay-timestamp'] || '0';\n  const sig = (h['x-promptpay-signature'] || '').toLowerCase();\n  const ts = parseInt(tsStr, 10);\n  const now = Math.floor(Date.now() / 1000);\n  if (!ts || Math.abs(now - ts) > 600) { item.json = { auth_ok: false, reason: 'timestamp_invalid' }; return item; }\n  const secret = item.json.secret;\n  const rawBody = item.json.rawBody ?? JSON.stringify(item.json);\n  const bodyHashHex = bytesToHex(sha256(toBytes(rawBody)));\n  const expected = hmacSha256(secret, ts + \"\\n\" + bodyHashHex);\n  const ok = sig === expected;\n  let body; try { body = JSON.parse(rawBody); } catch (e) { body = item.json; }\n  item.json = { auth_ok: ok, body };\n  return item;\n});"
+        },
+        "id": "Fn_HMAC",
+        "name": "Verify HMAC",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [780, 300]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "boolean": [
+              {
+                "value1": "={{$json.auth_ok}}",
+                "operation": "isTrue"
+              }
+            ]
+          }
+        },
+        "id": "IF_AuthOK",
+        "name": "IF Auth OK?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [1040, 300]
+      },
+      {
+        "parameters": {
+          "responseCode": 401,
+          "responseBody": "{\"ok\":false,\"error\":\"unauthorized\"}"
+        },
+        "id": "Resp_401",
+        "name": "Respond 401",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [1280, 430]
+      },
+      {
+        "parameters": {
+          "keepOnlySet": true,
+          "values": {
+            "string": [
+              {
+                "name": "message_id",
+                "value": "={{$json.body.message_id}}"
+              },
+              {
+                "name": "currency",
+                "value": "={{$json.body.currency}}"
+              },
+              {
+                "name": "bank",
+                "value": "={{$json.body.bank}}"
+              },
+              {
+                "name": "ref",
+                "value": "={{$json.body.ref}}"
+              },
+              {
+                "name": "created_at",
+                "value": "={{new Date().toISOString()}}"
+              }
+            ],
+            "number": [
+              {
+                "name": "amount",
+                "value": "={{ Number(String($json.body.amount).replace(/,/g,'')) }}"
+              },
+              {
+                "name": "txn_time",
+                "value": "={{ Number($json.body.txn_time) }}"
+              }
+            ],
+            "boolean": [
+              {
+                "name": "used",
+                "value": false,
+                "type": "boolean",
+                "value2": "={{false}}"
+              }
+            ]
+          }
+        },
+        "id": "Set_Normalize",
+        "name": "Normalize",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 2,
+        "position": [1280, 180]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO payments (message_id,currency,bank,ref,amount,txn_time,created_at,used) VALUES ('{{$json.message_id}}','{{$json.currency}}','{{$json.bank}}','{{$json.ref}}',{{$json.amount}},to_timestamp({{$json.txn_time}}),'{{$json.created_at}}'::timestamptz,COALESCE({{$json.used}},false)) ON CONFLICT (message_id) DO UPDATE SET currency=EXCLUDED.currency, bank=EXCLUDED.bank, ref=EXCLUDED.ref, amount=EXCLUDED.amount, txn_time=EXCLUDED.txn_time, created_at=EXCLUDED.created_at, used=EXCLUDED.used;"
+        },
+        "id": "PG_Upsert",
+        "name": "PG Upsert Payment",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 1,
+        "position": [1520, 180],
+        "notesInFlow": true,
+        "notes": "Set Postgres credentials in this node. Creates/updates row by message_id."
+      },
+      {
+        "parameters": {
+          "responseCode": 200,
+          "responseBody": "{\"ok\":true}"
+        },
+        "id": "Resp_200",
+        "name": "Respond 200",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [1760, 180]
+      }
+    ],
+    "connections": {
+      "WH Tasker": {
+        "main": [
+          [
+            {
+              "node": "Set Secret",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Set Secret": {
+        "main": [
+          [
+            {
+              "node": "Verify HMAC",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Verify HMAC": {
+        "main": [
+          [
+            {
+              "node": "IF Auth OK?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "IF Auth OK?": {
+        "main": [
+          [
+            {
+              "node": "Normalize",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Respond 401",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Normalize": {
+        "main": [
+          [
+            {
+              "node": "PG Upsert Payment",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "PG Upsert Payment": {
+        "main": [
+          [
+            {
+              "node": "Respond 200",
+              "type": "main",
+              "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true
+}
