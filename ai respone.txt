@@ -1,0 +1,39 @@
+
+
+I'll save your preference to avoid bank/PSP APIs and fees, and proceed with a slipless approach using Tasker/IMAP so I can tailor the workflows accordingly in future steps.
+ใช่ครับ ทำได้จริง โดยที่ลูกค้า “ไม่ต้องกด Verify Slip” ที่หน้าเช็คเอาต์
+
+# วิธีที่ทำให้เป็น Slipless โดยไม่ใช้ API/PSP (ฟรี)
+- __สร้าง QR Offline__: สร้าง EMV PromptPay QR ต่อออเดอร์ใน n8n แล้วให้ปลั๊กอิน WP แสดงที่หน้าเช็คเอาต์
+- __ยืนยันอัตโนมัติ__:
+  - __ทางเลือก A (แนะนำ)__: มือถือร้านติดตั้ง Tasker → ดัก Notification “เงินเข้า” จากแอปธนาคาร → ยิง Webhook มา n8n
+  - __ทางเลือก B (สำรอง)__: Gmail IMAP อ่านอีเมลแจ้งเตือนเงินเข้า
+- __AI Mapper + กฎจับคู่__: ใช้ OpenRouter (ฟรี) แปลงข้อความแจ้งเตือนเป็นเวลา/จำนวน/ชื่อ → จับคู่คำสั่งซื้อด้วย 10 นาทีและ ±0.50 THB + anti‑reuse
+- __UX หน้าเช็คเอาต์__: หน้าเว็บแสดง “กำลังตรวจสอบการชำระเงิน…” แล้วระบบเปลี่ยนเป็น “ชำระสำเร็จ” อัตโนมัติเมื่อแมตช์เจอ
+
+# ต้องมีอะไรบ้าง
+- __PromptPay Proxy__ (เบอร์/พร้อมเพย์) สำหรับสร้าง QR
+- __Tasker (Android)__ หรือ __Gmail IMAP__ อย่างใดอย่างหนึ่ง
+- __HMAC Secret__ ร่วมระหว่าง WP ↔ n8n
+- __OpenRouter API key ฟรี__ (เรามีโครงใน `Tasker Ingest.v5.*.json` แล้ว)
+- Postgres/ที่เก็บสถานะการจ่ายและ anti‑reuse (มีในเวิร์กโฟลว์อยู่แล้ว)
+
+# ข้อพิจารณา
+- ความแม่นขึ้น: แนะนำเพิ่ม “เศษสตางค์เฉพาะออเดอร์” เพื่อลดชนกันเมื่อยอดเท่ากัน
+- ถ้าแจ้งเตือนของธนาคารมีข้อมูลชัด (เวลา/ยอด/ชื่อ) จะจับคู่ได้เสถียรมาก
+- `WP Verify Slip.v2.ocr.json` เก็บเป็น fallback เท่านั้น กรณีต้องอัปสลิปจริง
+
+# ขั้นต่อไปที่ผมพร้อมทำ
+- สร้างเวิร์กโฟลว์:
+  - `WP QR Generate.v1.json` (EMV PromptPay, TTL 10 นาที)
+  - `Tasker Ingest.v6.json` (Notification → AI → Match)
+  - `Bank Alerts IMAP.v1.json` (เมล → AI → Match)
+  - `WP Order Status.v1.json` (ให้หน้าเว็บ polling)
+- ปรับปลั๊กอิน WP ให้เรียก `/qr/generate` และ poll `/order/status`
+
+ต้องการเริ่มเลย แจ้งให้ผมทราบ 3 อย่างนี้:
+- จะใช้ __Tasker__ หรือ __IMAP__ เป็นหลัก
+- __PromptPay Proxy__ ที่จะใช้
+- ตกลงใช้ “เศษสตางค์เฉพาะออเดอร์” ไหม
+
+สรุป: ยืนยันว่า “ไม่ต้องให้ลูกค้ากด verify slip เอง” ทำได้บน n8n โดยใช้ Tasker/IMAP แทน API ธนาคาร และยังคงฟรีตามที่คุณต้องการ.
