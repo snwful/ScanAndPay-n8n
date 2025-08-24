@@ -97,6 +97,20 @@ Scan & Pay (n8n) is a WooCommerce payment gateway plugin that enables customers 
 * Capability checks for admin actions
 * PII masking in logs
 
+== Slipless Mode (Preview) ==
+
+The next release is pivoting to a slipless flow (no bank/PSP APIs or fees). WordPress will securely proxy requests to n8n, which generates EMV PromptPay with unique cents (0–99 satang) and a 10‑minute TTL. Checkout will poll order status and auto-complete on confirmation. Slip upload remains as fallback.
+
+Planned endpoints (WordPress):
+
+* `POST /wp-json/san8n/v1/qr/generate` — signs (server-side HMAC) and forwards to n8n; response includes `{ emv, amount_to_pay, amount_variant?, currency, expires_epoch, session_token }`
+* `GET /wp-json/san8n/v1/order/status?order_id&session_token` — polls n8n session store and returns `{ status: pending|paid|expired, ... }`
+* `POST /wp-json/san8n/v1/order/paid` — optional callback from n8n to update order state
+
+Headers (slipless): use `X-San8n-*` where `X-San8n-Signature = HMAC_SHA256(secret, `${timestamp}\n${sha256(rawBody)}`)`
+
+Matching engine: Android Tasker forwards bank notifications to n8n, which extracts amount/time and exact-matches the `amount_variant` within TTL; sessions are marked `used=true`.
+
 == Developer Information ==
 
 = Hooks and Filters =

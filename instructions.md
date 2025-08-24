@@ -4,6 +4,8 @@ This file outlines the tasks Codex must perform to refactor the Scan & Pay (n8
 
 Status: As of v1.1.1, the gateway uses a static QR placeholder image configured via the WordPress Media Library and displays it in both Classic and Blocks checkout. Slip verification posts to `/wp-json/wc-scanandpay/v1/verify-slip` and forwards to a selectable backend verifier (n8n default; Laravel optional) using a unified response contract. Keep this file as a maintenance guide.
 
+Slipless Mode (MVP – planned): The default experience will move to a slipless flow powered by n8n. WordPress will proxy-sign a `/qr/generate` request to n8n (server-side HMAC), render a live EMV PromptPay QR with unique cents per order and 10‑min TTL, and poll `/order/status` until paid or expired. Slip upload remains as a fallback only.
+
 1. Settings: Media Library Picker
 
 Add/maintain a Media Library field for the QR placeholder image in `includes/class-san8n-gateway.php` (`init_form_fields()`), stored as `qr_image_url`.
@@ -78,11 +80,27 @@ Maintain backwards‑compatible hooks and filters where possible. If you remove 
 - Headers: `X-PromptPay-Timestamp` (unix), `X-PromptPay-Signature` = HMAC-SHA256 of `${timestamp}\n${sha256(body)}`, `X-PromptPay-Version: 1.0`, `X-Correlation-ID`.
 - Adapter reference: `includes/class-san8n-verifier.php` (`SAN8N_Verifier_Factory`, `SAN8N_Verifier_N8n`, `SAN8N_Verifier_Laravel`).
 
+### Slipless Proxy Contracts (Preview)
+
+1) QR Generate (WP → n8n via proxy)
+- WP endpoint (to add): `POST /wp-json/san8n/v1/qr/generate`
+- Body (JSON): `{ order_id, amount, currency: "THB", session_token }`
+- Headers: `X-San8n-Timestamp`, `X-San8n-Signature` where `signature = HMAC_SHA256(secret, `${timestamp}\n${sha256(rawBody)}`)`
+- Response: `{ emv, amount_to_pay, amount_variant?, currency, expires_epoch, session_token }`
+
+2) Order Status (WP → n8n via proxy)
+- WP endpoint (to add): `GET /wp-json/san8n/v1/order/status?order_id&session_token`
+- Response: `{ status: pending|paid|expired, paid_at_epoch?, reference_id? }`
+
+3) n8n → WP callback (optional)
+- WP endpoint (to add): `POST /wp-json/san8n/v1/order/paid`
+- Body: `{ order_id, session_token, status: paid|cancelled, reference_id?, paid_at_epoch? }`
+
 ## Android Forwarder (Tasker)
 
 Android Tasker can forward bank/Stripe notifications or SMS to your backend (n8n/Laravel) over HTTPS. The WooCommerce plugin remains unchanged and still calls `/verify-slip`; the backend uses recent forwarded alerts to decide `approved|rejected` following the unified contract.
 
-- Headers from Tasker → backend: `X-Device-Id`, `X-Secret` or `X-Signature` (HMAC of `${timestamp}\n${sha256(body)}`), optional `X-Timestamp`.
+- Headers from Tasker → backend: `X-Device-Id`, `X-San8n-Secret` or `X-San8n-Signature` (HMAC of `${timestamp}\n${sha256(body)}`), optional `X-San8n-Timestamp`.
 - Payload example (JSON):
   `{"source":"android-tasker","app":"%an","title":"%ntitle","text":"%ntext","posted_at":"%DATE %TIME","nid":"%nid"}`
 - Backend responsibilities: verify secret/HMAC, parse amount/reference via regex, de-duplicate (nid+timestamp or content hash), cache recent transactions (10–15 minutes), and respond via the unified contract when called by `/verify-slip`.
@@ -96,6 +114,7 @@ Android Tasker can forward bank/Stripe notifications or SMS to your backend (n8n
 4) Data Store (or Redis/Memory) node caches recent transactions keyed by `nid+posted_at` and normalized amount.
 5) De-dup check: skip insert if seen within window; update last_seen timestamp.
 6) Verification endpoint flow: when `/verify-slip` hits your verification branch, match order total and time window against cached entries; return `{ status, message?, approved_amount?, reference_id? }`.
+7) Slipless path: on `/qr/generate`, persist session with `session_token`, `amount_variant`, TTL; on Tasker ingest, exact-match `amount_variant` within TTL; mark used; expose `/order/status`.
 
 Notes / Roadmap (do not implement in this iteration):
 - Short term: Use n8n IMAP/email alert parsing or Android (Tasker) notification/SMS forwarding to verify incoming funds; document flow, security (HTTPS/HMAC), and reliability (battery, retries, de-dup).

@@ -83,6 +83,18 @@ Roadmap Alignment
 - Medium term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both backends.
 - Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.
 
+Slipless MVP Acceptance (Preview)
+
+- WP REST proxy endpoints exist:
+  - `POST /wp-json/san8n/v1/qr/generate` (server-side HMAC) → returns `{ emv, amount_to_pay, amount_variant?, currency, expires_epoch, session_token }`
+  - `GET /wp-json/san8n/v1/order/status?order_id&session_token` → returns `{ status: pending|paid|expired, ... }`
+- Headers for slipless use `X-San8n-*` with `signature = HMAC_SHA256(secret, `${timestamp}\n${sha256(rawBody)}`)`
+- Checkout renders EMV QR from `/qr/generate` and polls `/order/status` until `paid|expired`
+- n8n session store persists `session_token`, `amount_variant`, `expires_epoch`, `used`
+- Tasker Ingest matches exact `amount_variant` within TTL and marks `used=true`; anti‑reuse enforced
+- Optional n8n → WP callback `POST /san8n/v1/order/paid` updates Woo order status
+- Security: secrets trimmed, HTTPS with SSL verify, payload size guard on HMAC
+
 Planned Checks (Checkout-only)
 
 - Checkout Verification UX:

@@ -100,3 +100,19 @@ Headers (outbound to verifier):
 ### Phase 3 — Tests
 - [ ] Unit: factory selects adapter; response mapping conforms `{ status, message?, approved_amount?, reference_id? }`
 - [ ] Integration: REST happy-path and error/timeout/retry; filters `san8n_verifier_timeout`/`san8n_verifier_retries` honored
+
+## Slipless Flow (Preview)
+
+WordPress acts as a secure proxy to n8n to deliver a slipless experience with unique‑cents EMV PromptPay and a 10‑minute TTL. This is planned as the default mode; slip upload becomes fallback.
+
+- WP REST proxy endpoints to add:
+  - `POST /wp-json/san8n/v1/qr/generate` → sign with HMAC and forward to n8n, receive `{ emv, amount_to_pay, amount_variant?, expires_epoch, session_token }`
+  - `GET /wp-json/san8n/v1/order/status?order_id&session_token` → returns `{ status: pending|paid|expired, ... }`
+  - `POST /wp-json/san8n/v1/order/paid` (callback from n8n) → mark order paid/cancelled
+- Headers (slipless): use `X-San8n-*`
+  - `X-San8n-Timestamp` and `X-San8n-Signature = HMAC_SHA256(secret, `${timestamp}\n${sha256(rawBody)}`)`
+  - Tasker may send `X-San8n-Secret` or `X-San8n-Signature` with the same formula
+- n8n responsibilities:
+  - Persist `payment_sessions` with `session_token`, `amount_variant`, `expires_epoch`, `used`
+  - Ingest Tasker notifications; AI/regex mapper; exact‑match `amount_variant` within TTL; set `used=true`; expose status
+  - Optional callback `order/paid` to WP when a match is confirmed

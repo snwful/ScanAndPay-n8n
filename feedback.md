@@ -18,6 +18,13 @@ Structure the feedback as bullet points or short paragraphs. Aim to be honest an
  - Medium term: Add an optional external API adapter (Laravel) selectable in settings; keep a unified checkout-only contract.
  - Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency and a manual review queue.
 
+Slipless Mode (Preview) Notes
+
+- WordPress adds proxy endpoints to n8n: `POST /san8n/v1/qr/generate`, `GET /san8n/v1/order/status`, and optional `POST /san8n/v1/order/paid` callback.
+- Headers for slipless use `X-San8n-*` (`X-San8n-Timestamp`, `X-San8n-Signature = HMAC_SHA256(secret, `${timestamp}\n${sha256(rawBody)}`)`).
+- n8n issues EMV PromptPay with unique cents and 10‑min TTL; stores session with `session_token`, `amount_variant`, and `used` flag.
+- Checkout polls `/order/status` to transition UI to paid/expired automatically; slip upload remains fallback.
+
 Additional Focus Areas (Upcoming Work)
 
 - Checkout UX:

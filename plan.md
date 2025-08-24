@@ -1,85 +1,86 @@
 # plan.md — Sprint Plan (2025-08-25)
 
 ## Goal
-Finalize docs and execute a phased roadmap:
-- Short: use n8n IMAP/email alerts or Android (Tasker) notification/SMS forwarding to verify incoming funds before relying on slips.
-- Mid: add optional Laravel API adapter selectable in settings; standardize response contract.
-- Long: implement slipless unique-amount + email/SMS alert + webhook matching via Laravel.
+Slipless PromptPay flow (no bank/PSP APIs, no fees):
+- Live EMV QR per order via n8n with unique cents (0–99 satang) and 10‑min TTL
+- Android Tasker notification ingest → AI mapper → exact match to session
+- WordPress REST proxy signs requests (HMAC) and polls status; slip upload kept only as fallback
 
 ## Tasks
-- [x] Update docs to reflect static QR via Media Library, Classic/Blocks parity, responsive fixes, and REST namespace `wc-scanandpay/v1`.
-- [ ] Decide verification backend: n8n vs Laravel.
-- [x] Define verification response contract: `{ status: approved|rejected, reference_id?, approved_amount?, reason? }` (see `includes/class-san8n-verifier.php`).
-- [x] Document matching rules and headers across docs (README, readme.txt, instructions.md, context.md, evaluation.md, AGENTS.md, feedback.md).
-- [ ] Wire REST handler to `SAN8N_Verifier_Factory` in `includes/class-san8n-verifier.php` to call chosen service.
-- [ ] Confirm security: nonce, rate limiting, file validation, EXIF stripping.
-- [ ] Optional: add `/status/{token}` polling usage and UI progress indicators.
-- [ ] Update README/readme.txt sections as needed after backend decision.
+- [x] Update docs to slipless architecture and task breakdown
+- [ ] WP REST proxy: `POST /wp-json/san8n/v1/qr/generate` (server‑side HMAC) → forward to n8n
+- [ ] WP REST proxy: `GET /wp-json/san8n/v1/order/status` → poll n8n session store
+- [ ] WP REST callback: `POST /wp-json/san8n/v1/order/paid` from n8n to mark paid/cancelled
+- [ ] n8n: persist `payment_sessions` (session_token, amount_variant, TTL, used)
+- [ ] n8n: Tasker Ingest match engine (exact amount to unique cents within TTL; anti‑reuse)
+- [ ] WP gateway UI: render QR from EMV response and start polling until paid/expired
+- [ ] Security hardening: HMAC, HTTPS, payload guards, secret rotation, idempotency
+- [ ] Observability: logs, dead‑letter, metrics; tester checklist
 
 ## Risks/Mitigations
-- Backend availability/latency → timeouts and retries; clear user messaging.
-- File size/type differences across hosts → configurable limits and server-side validation.
-- Security of webhook → HMAC signing, HTTPS, nonce validation, minimal payload.
+- n8n/WP downtime → timeouts, retries, clear status to user, callback fallback
+- Tasker reliability → device setup guide, retry/queue, dedup
+- Signature mismatch → trim/normalize secret, fixed formula, header variants
+- Memory pressure on HMAC → payload size guard, lightweight pure‑JS SHA/HMAC
 
 ## Acceptance Criteria
-- Static QR image displays correctly in Classic and Blocks, responsive on mobile.
-- `POST /wp-json/wc-scanandpay/v1/verify-slip` forwards to chosen backend and updates order based on response.
-- Admin can set QR image via Media Library and configure webhook URL/secret.
-- Documentation updated (README.md, readme.txt, context.md, instructions.md, evaluation.md, feedback.md, AGENTS.md).
-- Android Forwarder (Tasker) documented with backend receiving workflow (n8n spec: headers/signature, parse, de-dup, cache) and evaluation checks updated.
-- PHPCS passes (where applicable) and no console errors on checkout.
+- WP can call `san8n/v1/qr/generate` and receive `{ emv, amount_to_pay, currency, expires_epoch, session_token }`
+- Checkout shows EMV QR and polls `san8n/v1/order/status` → transitions to `paid|expired`
+- Tasker Ingest matches a real notification to an open session (exact amount_variant) within TTL, marks `used=true`
+- n8n posts callback to `san8n/v1/order/paid`; Woo order status updates to processing/completed
+- HMAC verified end‑to‑end; secrets trimmed/rotated; payload guard enforced
+- Docs reflect slipless default; slip upload documented as fallback only
 
-## Verification Contract (Request & Headers)
+## Verification Contracts
 
-- Request (multipart/form-data): `slip_image` (file), `order` (JSON with `id`, `total`, `currency`), `session_token`.
-- Headers: `X-PromptPay-Timestamp` (unix), `X-PromptPay-Signature` = HMAC-SHA256 of `${timestamp}\n${sha256(body)}`, `X-PromptPay-Version: 1.0`, `X-Correlation-ID`.
-- Adapter reference: `includes/class-san8n-verifier.php` (factory + n8n/Laravel implementations).
+### 1) QR Generate (WP → n8n via proxy)
+- Body (JSON): `{ order_id, amount, currency: 'THB', session_token }`
+- Headers (either casing): `X-San8n-Timestamp`, `X-San8n-Signature` where
+  - `signature = HMAC_SHA256(secret, `${timestamp}\n${sha256(rawBody)}`)`
+- Response: `{ emv, amount_to_pay, amount_variant?, currency, expires_epoch, session_token }`
+
+### 2) Order Status (WP → n8n via proxy)
+- Query: `order_id, session_token`
+- Response: `{ status: pending|paid|expired, paid_at_epoch?, reference_id? }`
+
+### 3) Tasker Ingest (Device → n8n)
+- Body (JSON): `{ source, app, title, text, posted_at, nid }`
+- Headers: `X-Device-Id`, `X-San8n-Secret` or `X-San8n-Signature` (same HMAC scheme)
+- Match: exact `amount_variant` within TTL; anti‑reuse by `nid+posted_at` or content hash
 
 ## Next
-- Short: document and wire n8n IMAP/email parsing or Android (Tasker) forwarding → backend verification; add UI copy and countdown guidance.
-- Mid: implement Laravel adapter option and shared response schema; expose a settings toggle.
-- Long: design slipless unique-amount flow, idempotent webhook, manual review queue; plan migration steps.
+- Short: implement WP proxy + n8n endpoints + Tasker match; ship slipless MVP
+- Mid: add IMAP email path; observability & rotation; polish UX (progress)
+- Long: optional Laravel backend; manual review queue; expanded bank parsers
 
-## Open question for todo-5 (Copy polish)
-Do you want to:
-Keep current branding (“Scan & Pay (n8n)”) and just ensure backend text is neutral, or
-Generalize gateway titles/descriptions to be backend-agnostic (e.g., “Scan & Pay — Slip Verification”)?
+## Open question (Copy/Branding)
+- Keep “Scan & Pay (n8n)” or generalize to backend‑agnostic wording?
 
 ## Step-by-step Execution Plan
+Sprint 1 — Slipless MVP
+- [ ] WP proxy: `/qr/generate`, `/order/status`, `/order/paid` + HMAC
+- [ ] n8n: session store + QR build + status + callback
+- [ ] Woo checkout: show EMV QR + poll + finalize on paid
 
-Sprint 1 — Checkout Verification Finalize
-- [x] Finalize checkout-only verification: `/verify-slip` returns approved|rejected only; set/clear session flags; `validate_fields()` gates Place order accordingly; Classic auto-submit on approval (if enabled).
-- [x] Adapter wrapper: unify n8n calls in `class-san8n-rest-api.php` with contract `{ status, message?, approved_amount?, reference_id? }`.
-- [x] Classic/Blocks parity: both render static QR and share verify flow without console errors.
-- [x] Security baseline: HMAC signing, HTTPS with SSL verification, sensible timeout (no retries at checkout); strict file validation.
+Sprint 2 — Tasker Reliability & Observability
+- [ ] Tasker match engine hardening; dedup; retries; device guide
+- [ ] Logs/alerts/metrics; dead‑letter for unmatched notifications
+- [ ] Secret rotation and dual‑secret window
 
-Sprint 2 — Laravel Adapter + Tests
-- [x] Settings toggle to choose backend (n8n|Laravel) and configure endpoint/secret.
-- [x] Implement Laravel adapter using same contract; add filters for timeout/retry.
-- [ ] Tests: unit/integration for REST adapter; manual regression on Classic/Blocks.
-
-Sprint 2a — Android Forwarder (Tasker)
-- [x] Document Tasker flow in AGENTS.md and context.md (architecture, headers, payload example, reliability).
-- [x] Add n8n workflow spec (webhook → HMAC verify → parse → de-dup/cache → match) in instructions.md/evaluation.md.
-- [ ] Update readme.txt with a brief Android Forwarder (Tasker) section and roadmap mention.
-- [ ] Add tester checklist in feedback.md for battery optimization, offline/retry, duplicate handling.
-
-Sprint 3 — Optional Enhancements
-- [ ] Anti-reuse: compute/store slip hash to block reuse across orders.
-- [ ] Optional file types: add `webp/jfif` with strict validation.
-- [ ] Logging: structured logs with PII masking.
+Sprint 3 — Fallbacks & Options
+- [ ] IMAP email ingest path
+- [ ] Maintain slip upload as optional fallback only
+- [ ] Optional Laravel backend adapter
 
 ## Open Tasks
-- [ ] Test admin: Select QR image via media picker, preview shows, Save changes, reload confirms persistence (in progress)
-- [ ] Test classic checkout: static QR image displays from saved URL; no PromptPay assets/shortcodes used; no 404s
-- [ ] Test WooCommerce Blocks checkout: static QR image displays; no PromptPay assets; no console errors
-- [ ] Optional cleanup: remove PromptPay wording from gateway title/description defaults in `includes/class-san8n-gateway.php`
-- [ ] REST flow: `/verify-slip` returns approved|rejected only; set/clear session accordingly; Classic auto-submit on approval (if enabled)
-- [ ] Adapter wrapper: unify n8n (Laravel optional later) with contract `{ status, message?, approved_amount?, reference_id? }`
-- [ ] Security hardening: enforce HTTPS/SSL verify, HMAC, timeouts/retries; strict file validation; PII masking in logs
-- [ ] Tests: unit/integration for REST adapter; manual regression on Classic/Blocks
+- [ ] Implement WP proxy endpoints and settings wiring
+- [ ] Implement n8n session table and nodes; exact match logic
+- [ ] Connect checkout UI to new proxy endpoints and polling
+- [ ] Add callback handler to mark orders paid and stop polling
+- [ ] Update docs and tester checklist; field test with real Tasker notifications
 
 ## Deliverables per Sprint
-- Sprint 1: Checkout-only verification finalized, adapter wrapper for n8n, Classic/Blocks parity, security baseline, docs updated.
-- Sprint 2: Laravel backend option with settings, tests for adapter, docs.
-- Sprint 3: Optional enhancements (anti-reuse, file types, logging), docs.
+- Sprint 1: Slipless MVP working E2E (QR shown, auto-match, order paid), docs updated
+- Sprint 2: Reliability + observability + rotation, device guide complete
+- Sprint 3: Fallbacks (IMAP/slip), optional Laravel adapter, docs
+

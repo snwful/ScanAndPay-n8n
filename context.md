@@ -33,6 +33,22 @@ Roadmap
 - Medium term: Add an optional external API adapter (Laravel) selectable in settings; standardize the response contract and maintain both backends.
 - Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.
 
+## Slipless Flow (Planned default)
+
+We are moving to a slipless PromptPay flow as the default experience (no bank/PSP APIs or fees). WordPress will act as a secure proxy to n8n:
+
+- WP REST proxy endpoints to add:
+  - `POST /wp-json/san8n/v1/qr/generate` → signs (HMAC) and forwards to n8n to generate EMV PromptPay with unique cents and 10‑min TTL
+  - `GET /wp-json/san8n/v1/order/status` → polls n8n session store for `pending|paid|expired`
+  - Optional: `POST /wp-json/san8n/v1/order/paid` ← n8n callback to mark Woo orders paid/cancelled
+- n8n maintains a `payment_sessions` store with fields: `session_token`, `amount_variant`, `expires_epoch`, `used`
+- Matching: Android Tasker forwards bank notifications; n8n’s AI/regex mapper extracts amount/time and matches exact `amount_variant` within TTL; sets `used=true`
+- Frontend: checkout renders EMV QR returned by `/qr/generate` and polls `/order/status` until paid/expired; slip upload remains a fallback only
+
+Headers for slipless flow use `X-San8n-*`:
+- `X-San8n-Timestamp`, `X-San8n-Signature = HMAC_SHA256(secret, `${timestamp}\n${sha256(rawBody)}`)`
+- Tasker can send `X-San8n-Secret` or `X-San8n-Signature` with the same formula
+
 ## Android Forwarder (Tasker) Architecture
 
 Android(Tasker) captures bank/Stripe notifications or SMS and forwards them to the backend (n8n/Laravel) via HTTPS. The plugin remains unchanged and still calls `/verify-slip`; the backend uses recent forwarded alerts to decide `approved|rejected` according to the unified contract.
