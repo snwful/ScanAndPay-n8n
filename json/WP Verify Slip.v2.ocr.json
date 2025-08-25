@@ -37,7 +37,7 @@
           ],
           "number": [
             { "name": "time_window_sec", "value": 600 },
-            { "name": "amount_tol", "value": 0 },
+            { "name": "amount_tol", "value": 0.5 },
             { "name": "name_threshold_strict", "value": 0.85 },
             { "name": "name_threshold_auto", "value": 0.9 }
           ]

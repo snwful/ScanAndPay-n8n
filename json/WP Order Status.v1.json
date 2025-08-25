@@ -32,8 +32,7 @@
         "keepOnlySet": false,
         "values": {
           "number": [
-            { "name": "time_window_sec", "value": 900 },
-            { "name": "amount_tol", "value": 0 }
+            { "name": "time_window_sec", "value": 600 }
           ]
         }
       },
@@ -42,7 +41,7 @@
       "typeVersion": 2,
       "position": [760, 300],
       "notesInFlow": true,
-      "notes": "Policy: 15m window, ±0.50 THB tolerance for matching."
+      "notes": "Policy: 10m window, 0.00 THB tolerance (exact) for QR sessions using amount_variant."
     },
     {
       "parameters": {
@@ -145,7 +144,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{`WITH params AS (\n  SELECT s.created_at AS center, s.amount_variant::numeric AS want_amt, ${$item(0).$node['Set Policy'].json.amount_tol}::numeric AS tol, ${$item(0).$node['Set Policy'].json.time_window_sec}::int AS win\n  FROM payment_sessions s\n  WHERE s.session_token = '${$json.session.session_token}'\n), cte AS (\n  SELECT p.message_id, p.amount\n  FROM payments p, params\n  WHERE p.used = false\n    AND p.created_at BETWEEN (params.center - (params.win || ' seconds')::interval) AND now()\n    AND p.amount BETWEEN (params.want_amt - params.tol) AND (params.want_amt + params.tol)\n  ORDER BY p.created_at DESC\n  LIMIT 1\n), mark_pay AS (\n  UPDATE payments p SET used=true FROM cte WHERE p.message_id = cte.message_id\n), mark_sess AS (\n  UPDATE payment_sessions s SET status='approved', matched_message_id=cte.message_id, approved_amount=cte.amount\n  FROM cte\n  WHERE s.session_token='${$json.session.session_token}'\n)\nSELECT message_id, amount FROM cte;`}}"
+        "query": "={{`WITH params AS (\n  SELECT s.created_at AS center, s.amount_variant::numeric AS want_amt, ${$item(0).$node['Set Policy'].json.time_window_sec}::int AS win\n  FROM payment_sessions s\n  WHERE s.session_token = '${$json.session.session_token}'\n), cte AS (\n  SELECT p.message_id, p.amount\n  FROM payments p, params\n  WHERE p.used = false\n    AND p.created_at BETWEEN (params.center - (params.win || ' seconds')::interval) AND now()\n    AND p.amount = params.want_amt\n  ORDER BY p.created_at DESC\n  LIMIT 1\n), mark_pay AS (\n  UPDATE payments p SET used=true FROM cte WHERE p.message_id = cte.message_id\n), mark_sess AS (\n  UPDATE payment_sessions s SET status='approved', matched_message_id=cte.message_id, approved_amount=cte.amount\n  FROM cte\n  WHERE s.session_token='${$json.session.session_token}'\n)\nSELECT message_id, amount FROM cte;`}}"
       },
       "name": "PG Match+Approve",
       "type": "n8n-nodes-base.postgres",
