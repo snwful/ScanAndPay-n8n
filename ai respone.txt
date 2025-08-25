@@ -1,107 +1,94 @@
 
 
-เยี่ยมเลย เป้าหมาย “ไร้สลิป, ฟรีค่าธรรมเนียม, มืออาชีพ” ทำได้ครับ ต่อไปนี้คือภาพรวมสถาปัตยกรรม/การทำงานที่แนะนำ โดยยึดไฟล์ในโปรเจ็กต์คุณตอนนี้
+# แผนงาน n8n เฉพาะส่วน Backend (จัดลำดับสำคัญ)
 
-# Desired UX (จากมุมมองลูกค้า)
-- เลือกวิธีชำระ PromptPay → เห็น QR พร้อมยอดเงิน (เพิ่มเศษสตางค์ 2 หลักท้ายเป็นตัวแยกคำสั่งซื้อ)
-- ไม่ต้องอัปโหลดสลิป
-- จ่ายเสร็จ ระบบตรวจจับการโอนอัตโนมัติ → ออเดอร์ “ชำระแล้ว” แบบไร้รอยต่อ
+ด้านล่างคือรายการงาน n8n แบ่ง 3 ระดับ พร้อม task ย่อยและผลลัพธ์ที่คาดหวัง โดยยึดสถาปัตยกรรม slipless: unique cents + TTL 10 นาที, HMAC, และ matching จาก Tasker/IMAP
 
-# Components และไฟล์ที่เกี่ยวข้อง
-- __WordPress plugin__:
-  - [scanandpay-n8n.php](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/scanandpay-n8n.php:0:0-0:0) (main)
-  - เพิ่มคลาส REST proxy/HMAC และ gateway ต่อไปใน `includes/` เช่น:
-    - `includes/class-san8n-api.php` (WP REST proxy → เซ็น HMAC แล้ว forward ไป n8n)
-    - [includes/class-san8n-gateway.php](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-gateway.php:0:0-0:0) (WooCommerce gateway: แสดง QR, เริ่ม poll)
-- __n8n workflows__:
-  - `WP QR Generate debug.fixed.json` สร้าง EMV PromptPay + TTL + unique cents
-  - `Tasker Ingest.v5.3.ai-openrouter.v2.json` รับแจ้งเตือนจากมือถือ → AI Guardrail → จับคู่ session
-  - `WP Verify Slip.v2.ocr.json` ตัวเลือกสำรอง (ปิด/เก็บไว้ใช้ฉุกเฉิน)
-  - ใหม่ที่จะเพิ่ม: `/order/status` และ callback → WP
+## ระดับสำคัญ (Critical)
+- __Session Store (Postgres)__
+  - ออกแบบสคีมา `payment_sessions` (session_token PK, order_id, amount_base, amount_variant, currency, expires_epoch, used, created_at, updated_at, source/ip)
+  - สร้าง migrations + index (session_token unique, expires_epoch, used, amount_variant)
+  - ฟังก์ชัน upsert + mark used + GC sessions หมดอายุ
 
-# End-to-End Flow
-1) __Checkout (WP)__
-- คิดยอด base แล้วคำนวณ “เศษสตางค์เฉพาะ” ด้วย `use_unique_cents=true, unique_cents_mod=10` ใน `WP QR Generate debug.fixed.json`
-- WP เรียก REST proxy: `POST /wp-json/san8n/v1/qr/generate` พร้อม `order_id, amount, currency, session_token`
-- Proxy สร้าง raw JSON, สร้าง HMAC ตามสูตรเดียวกับ Postman pre-script แล้วส่งไป n8n webhook ของ `WP QR Generate` (แทนที่การใช้ Postman)
+- __Shared HMAC Util (pure JS)__
+  - Node ฟังก์ชัน: trim secret, Base64 decode → bytes, guard payload size, `sig = HMAC_SHA256(secret, timestamp + "\n" + sha256(rawBody))`
+  - ใช้ร่วมทุก webhook (QR, Tasker, IMAP, Status, Callback)
 
-2) __Generate QR (n8n: `WP QR Generate debug.fixed.json`)__
-- `Verify HMAC` (pure-JS + guard) ตรวจ header และ raw body
-- `Build Session` สร้างข้อมูล session: `order_id, session_token, amount_variant, expires_epoch` และ EMV payload
-- บันทึก session ลง store (แนะนำ Postgres) พร้อม `TTL, used=false` และ index ที่จำเป็น
-- ตอบกลับไป WP: `emv, amount_to_pay, currency, expires_epoch`
+- __QR Generate Workflow (hardening)__
+  - Webhook: Verify HMAC, validate body (order_id, amount, currency)
+  - คำนวณ unique cents ป้องกัน collision (เช็คซ้ำในช่วง TTL)
+  - สร้าง/อัปเดต session: amount_variant, expires_epoch, used=false
+  - สร้าง EMV PromptPay, คืน `{ emv, amount_to_pay, amount_variant, currency, expires_epoch, session_token }`
+  - Structured log + X-Correlation-ID
 
-3) __Show QR + Poll (WP)__ 
-- ปลั๊กอินแสดง QR จาก `emv` และเริ่ม poll สถานะทุก X วินาที ที่ WP proxy: `GET /wp-json/san8n/v1/order/status?order_id=&session_token=` (WP จะ proxy ไป n8n)
-- สถานะที่คาด: `pending | paid | expired | cancelled`
+- __Tasker Ingest v6 (webhook)__
+  - Verify HMAC, schema validate (app/title/text/time/nid)
+  - Mapper THB: regex + AI fallback, normalize amount + timestamp (Asia/Bangkok)
+  - Dedupe: nid/message-id/content-hash + window
+  - ส่งต่อ Matching Engine
 
-4) __Slipless Verification (Tasker)__
-- มือถือ Android มี Tasker อ่าน Notification ของแอปธนาคาร → POST ไป `tasker/ingest` ของ `Tasker Ingest.v5.3.ai-openrouter.v2.json` พร้อม HMAC
-- Workflow นี้:
-  - `Verify HMAC` (สูตรเดียวกับ QR Generate)
-  - Parser + __AI Guardrail__ map เป็นฟิลด์: `amount, datetime_epoch, account_name/...`
-  - __Match Engine__:
-    - หา session ที่ `used=false` และอยู่ในหน้าต่างเวลา 10 นาที
-    - ถ้าเปิด unique cents ให้ match แบบ __exact amount__ กับ `amount_variant`
-    - ถ้าจำเป็นค่อย fallback tolerance ±0.50 THB ร่วมกับคะแนนชื่อ/เวลา
-  - เมื่อ match สำเร็จ: mark `used=true, paid_at_epoch`, เก็บ evidence hash/notification hash สำหรับ anti-reuse
-  - __Callback WP__: POST ไป `wp-json/san8n/v1/order/paid` เพื่อ mark order เป็น “processing/paid”
+- __Matching Engine__
+  - Query sessions ที่ยังไม่หมดอายุ where amount_variant ตรง
+  - mark `used=true`, emit “match-confirmed” event
+  - เก็บ audit log (source, parser, confidence, matched_session_token)
 
-5) __Order becomes paid__
-- WP หยุด poll ทันทีเมื่อสถานะเป็น `paid` หรือหมดเวลาเป็น `expired`
+- __Order Status Workflow__
+  - Webhook: validate params + HMAC (หากต้อง), read session by token/order_id
+  - คืนผล `{ status: pending|paid|expired, ... }`
+  - เคส expired: now > expires_epoch
+  - เคส paid: session.used=true
 
-6) __Fallback (เลือกใช้)__
-- `WP Verify Slip.v2.ocr.json` เปิดในกรณีมีปัญหา Tasker/IMAP ชั่วคราว
+- __Security Baseline__
+  - บังคับ HTTPS, SSL verify
+  - Payload size guard ทุก webhook
+  - Rate limit ขั้นต้นต่อ IP/token
+  - PII masking ใน logs
 
-# Data Model (Session Store)
-- Table: `payment_sessions`
-  - Keys: `session_token (PK)`, `order_id (index)`, `amount_base`, `amount_variant`, `expires_epoch`, `used (bool)`, `created_at_epoch`
-  - Evidence: `source=tasker|imap`, `evidence_hash`, `payer_name`, `matched_at_epoch`
-- กติกา
-  - `TTL`: 10 นาที
-  - `used=true` หลัง match สำเร็จ (anti-reuse)
-  - Unique index: `(order_id, used=false)` เพื่อกันเปิดหลาย session ซ้อน
+## ระดับกลาง (Medium)
+- __IMAP Gmail Ingest__
+  - OAuth2 cred, polling label, fetch unseen
+  - Parser KBank template + AI fallback
+  - Dedupe จาก Message-ID/subject hash/time window
+  - ส่งเข้า Matching Engine
 
-# Security & Anti-abuse
-- __HMAC everywhere__: WP proxy → n8n (เหมือน Postman pre), Tasker → n8n
-- __Trim secret__, เก็บเป็น Base64 ใน WP option และ n8n env
-- __Rotation__: รองรับ rotate secret แบบคู่ (old/new) ช่วงเปลี่ยนผ่าน
-- __Guard__: ป้องกัน payload > 2MB
-- __Idempotency__: ใช้ `session_token` และ `order_id` เป็น idempotency keys
+- __Observability__
+  - Structured logs ทุก workflow (correlation_id, session_token ตัดทอน)
+  - Metrics: counts/success/failure/latency, queue size
+  - Dashboard พื้นฐานใน n8n/外 tool
 
-# Observability
-- Log รายการสำคัญ: verify pass/fail, match result, callback result
-- Dead-letter: เก็บ notification ที่ parse ไม่ได้/ไม่ match ไว้ตรวจสอบ
-- Metrics: success rate, time-to-match
+- __Dead-letter & Replay__
+  - เก็บ event ที่ fail (webhook/imap/parser/match) ลง DLQ table
+  - หน้า/flow สำหรับ replay แบบ manual + retention policy
 
-# จุดเชื่อมกับไฟล์ในโปรเจ็กต์
-- `WP QR Generate debug.fixed.json`
-  - มี `Verify HMAC` แบบ pure-JS แล้ว และการ parse amount แข็งแรง
-  - แนะนำเพิ่ม Node เขียน `payment_sessions` (Postgres) และคืน `session_token, amount_variant`
-- `Tasker Ingest.v5.3.ai-openrouter.v2.json`
-  - คง `WH Tasker` + `Set Secret`
-  - เพิ่ม `Verify HMAC` แบบเดียวกับ QR Generate
-  - Parser + AI Guardrail → Match Engine → Postgres update `used=true` → `HTTP Request` callback ไป WP
-- `WP Verify Slip.v2.ocr.json`
-  - เก็บเป็น fallback
-- [scanandpay-n8n.php](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/scanandpay-n8n.php:0:0-0:0)
-  - สมัคร REST routes:
-    - `POST /wp-json/san8n/v1/qr/generate` → เซ็น HMAC แล้ว forward
-    - `GET /wp-json/san8n/v1/order/status` → proxy ไป n8n
-    - `POST /wp-json/san8n/v1/order/paid` → endpoint ให้ n8n callback
-  - WooCommerce gateway แสดง QR และเริ่ม poll
+- __Rate Limiting/Abuse Guard เพิ่มเติม__
+  - Per-IP + per-token + burst control
+  - Circuit breaker เมื่อ error rate สูง
 
-# Matching Logic ที่แนะนำ
-- __โหมดหลัก__: unique cents on → require exact amount match กับ `amount_variant` ภายใน TTL
-- __โหมด fallback__: หากธนาคารปัดเศษหรือข้อมูลไม่ครบ ใช้ window เวลา + tolerance ±0.50 THB + ชื่อผู้โอน + confidence จาก AI
-- ป้องกัน reuse: notification hash ใด ๆ ใช้ match ได้ครั้งเดียว
+- __Secret Rotation Procedure__
+  - รองรับ PROMPTPAY_SECRET_v2
+  - Dual-verify window (ยอมรับได้ทั้ง v1/v2)
+  - คู่มือ rotate + rollout plan
 
-# Next Actions (สั้น ๆ)
-- __WP REST proxy__ สำหรับ `/qr/generate`, `/order/status`, `/order/paid`
-- __n8n session store (Postgres)__ + nodes สำหรับ upsert/find/update
-- __เติม Verify HMAC + Match Engine__ ใน `Tasker Ingest.v5.3...`
-- __Polling UI__ ใน WP (แสดงสถานะ paid/expired)
+## ระดับเสริม (Optional)
+- __WP Callback (n8n → WP)__
+  - Workflow POST `/san8n/v1/order/paid` (HMAC, retries/backoff, idempotency key)
+  - ใช้เสริมจากการ polling
 
-ถ้าคุณ OK ผมจะเริ่มที่ “WP REST proxy + n8n /order/status” ก่อน เพื่อให้ปลั๊กอินเรียกใช้งานจริงแทน Postman แล้วค่อยเติมฝั่ง Tasker Match Engine ต่อครับ
+- __Payment Simulator__
+  - สร้าง fake Tasker/IMAP events
+  - Auto-create session + end-to-end test harness
 
-สรุปสถานะ: โครงสร้างพร้อมต่อยอด slipless แล้ว เหลือต่อชิ้นส่วน proxy/status/store/match/callback ให้ครบวงจร
+- __Multi-bank Parser__
+  - เพิ่ม SCB, BBL, KTB, TTB templates + unit test ต่อ parser
+
+- __Alerting & Monitoring__
+  - แจ้งเตือน Telegram/Email เมื่อ DLQ โต, error rate สูง, ใกล้หมดอายุ secret rotation window
+
+# ลำดับทำงานแนะนำ
+1) Critical: HMAC util → Session Store → QR Generate → Tasker Ingest → Matching → Order Status → Security baseline  
+2) Medium: IMAP Gmail → Observability → DLQ/Replay → Rate limiting ขั้นสูง → Secret rotation  
+3) Optional: WP Callback → Simulator → Multi-bank → Alerting
+
+ถ้าต้องการ ผมจะเริ่มจาก Critical ชุดแรกให้เลย พร้อมโครง workflow ใน n8n (ชื่อ node/field/เอาต์พุต) และสคีมา Postgres ที่ใช้จริง. 
+
+สรุปสถานะ: ผมได้เพิ่มรายการงาน n8n เข้าสู่ TODO กลางของโปรเจกต์เรียบร้อย โดยจัด priority สำคัญ/กลาง/เสริม พร้อม task ย่อยครบสำหรับเริ่มพัฒนาได้ทันที.
