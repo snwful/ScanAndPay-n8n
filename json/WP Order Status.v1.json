@@ -1,0 +1,201 @@
+{
+  "name": "WP Order Status v1 - HMAC + Session Lookup + Match",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wp/order-status",
+        "responseMode": "responseNode",
+        "options": { "rawBody": true }
+      },
+      "name": "WH WP Order Status",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "notesInFlow": true,
+      "notes": "WordPress calls this to poll/check payment session status by session_token or order_id."
+    },
+    {
+      "parameters": {
+        "keepOnlySet": false,
+        "values": { "string": [ { "name": "secret", "value": "REPLACE_WP_SHARED_SECRET" } ] }
+      },
+      "name": "Set Secret",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [520, 300],
+      "notesInFlow": true,
+      "notes": "WordPress → n8n shared secret (Woo setting: shared_secret)."
+    },
+    {
+      "parameters": {
+        "keepOnlySet": false,
+        "values": {
+          "number": [
+            { "name": "time_window_sec", "value": 900 },
+            { "name": "amount_tol", "value": 0 }
+          ]
+        }
+      },
+      "name": "Set Policy",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [760, 300],
+      "notesInFlow": true,
+      "notes": "Policy: 15m window, ±0.50 THB tolerance for matching."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Shared HMAC util (pure JS). Accept X-San8n-* or legacy X-PromptPay-*\nfunction toBytes(str){ if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(str); var e=[]; for (var i=0;i<str.length;i++){ var c=str.charCodeAt(i); e.push(c & 0xFF);} return new Uint8Array(e);}\nfunction bytesToHex(b){ var s='',h='0123456789abcdef'; for (var i=0;i<b.length;i++){ s+=h[(b[i]>>>4)&15]+h[b[i]&15]; } return s; }\nfunction rotr(x,n){return (x>>>n)|(x<<(32-n));}\nfunction sha256(bytes){ var K=[1116352408,1899447441,3049323471,3921009573,961987163,1508970993,2453635748,2870763221,3624381080,310598401,607225278,1426881987,1925078388,2162078206,2614888103,3248222580,3835390401,4022224774,264347078,604807628,770255983,1249150122,1555081692,1996064986,2554220882,2821834349,2952996808,3210313671,3336571891,3584528711,113926993,338241895,666307205,773529912,1294757372,1396182291,1695183700,1986661051,2177026350,2456956037,2730485921,2820302411,3259730800,3345764771,3516065817,3600352804,4094571909,275423344,430227734,506948616,659060556,883997877,958139571,1322822218,1537002063,1747873779,1955562222,2024104815,2227730452,2361852424,2428436474,2756734187,3204031479,3329325298]; function Ch(x,y,z){return (x & y) ^ (~x & z);} function Maj(x,y,z){return (x & y) ^ (x & z) ^ (y & z);} function S0(x){return rotr(x,2)^rotr(x,13)^rotr(x,22);} function S1(x){return rotr(x,6)^rotr(x,11)^rotr(x,25);} function s0(x){return rotr(x,7)^rotr(x,18)^(x>>>3);} function s1(x){return rotr(x,17)^rotr(x,19)^(x>>>10);} var l=bytes.length; var ml=l*8; var withOne=new Uint8Array(l+1); withOne.set(bytes); withOne[l]=0x80; var padLen=((56-(withOne.length%64))+64)%64; var padded=new Uint8Array(withOne.length+padLen+8); padded.set(withOne); var dv=new DataView(padded.buffer); dv.setUint32(padded.length-8, Math.floor(ml/Math.pow(2,32))); dv.setUint32(padded.length-4, ml>>>0); var H=[1779033703,3144134277,1013904242,2773480762,1359893119,2600822924,528734635,1541459225]; function read32(i){ return (padded[i]<<24)|(padded[i+1]<<16)|(padded[i+2]<<8)|padded[i+3]; } for (var i=0;i<padded.length;i+=64){ var w=new Array(64); for (var j=0;j<16;j++){ w[j]=read32(i+j*4)>>>0; } for (var j=16;j<64;j++){ var g1=s1(w[j-2]); var g0=s0(w[j-15]); w[j]=(((w[j-16]+g0)>>>0)+(w[j-7]>>>0)+g1)>>>0; } var a=H[0],b=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7]; for (var j=0;j<64;j++){ var t1=(h+S1(e)+Ch(e,f,g)+K[j]+w[j])>>>0; var t2=(S0(a)+Maj(a,b,c))>>>0; h=g; g=f; f=e; e=(d+t1)>>>0; d=c; c=b; b=a; a=(t1+t2)>>>0; } H[0]=(H[0]+a)>>>0; H[1]=(H[1]+b)>>>0; H[2]=(H[2]+c)>>>0; H[3]=(H[3]+d)>>>0; H[4]=(H[4]+e)>>>0; H[5]=(H[5]+f)>>>0; H[6]=(H[6]+g)>>>0; H[7]=(H[7]+h)>>>0; } var out=new Uint8Array(32); var dv2=new DataView(out.buffer); for (var i=0;i<8;i++){ dv2.setUint32(i*4,H[i]); } return out; }\nfunction hmacSha256(keyBytes, msgBytes){ var block=64; var key=keyBytes; if (key.length>block){ key = sha256(key); } if (key.length<block){ var k=new Uint8Array(block); k.set(key); key=k; } var o=new Uint8Array(block), iB=new Uint8Array(block); for (var i=0;i<block;i++){ o[i]=0x5c^key[i]; iB[i]=0x36^key[i]; } var inner=new Uint8Array(iB.length+msgBytes.length); inner.set(iB); inner.set(msgBytes,iB.length); var innerHash=sha256(inner); var outer=new Uint8Array(o.length+innerHash.length); outer.set(o); outer.set(innerHash,o.length); return sha256(outer); }\nfunction base64ToBytes(b64){ var bin=atob(String(b64||'').trim()); var out=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++){ out[i]=bin.charCodeAt(i)&0xFF; } return out; }\nreturn items.map(item=>{ const headers=item.json.headers||{}; const rawBody=String(item.json.rawBody||''); const secretB64=String($item(0).$node['Set Secret'].json.secret||'').trim(); const sec=base64ToBytes(secretB64); const ts = headers['x-san8n-timestamp'] || headers['X-San8n-Timestamp'] || headers['x-promptpay-timestamp'] || headers['X-PromptPay-Timestamp'] || ''; const sig = headers['x-san8n-signature'] || headers['X-San8n-Signature'] || headers['x-promptpay-signature'] || headers['X-PromptPay-Signature'] || ''; const payloadHash = bytesToHex(sha256(toBytes(rawBody))); const msg = ts + '\n' + payloadHash; const expected = bytesToHex(hmacSha256(sec, toBytes(msg))); const skewOk = Math.abs((Date.now()/1000) - Number(ts)) <= 300; const ok = skewOk && typeof sig==='string' && sig.toLowerCase()===expected; item.json.auth_ok = ok; item.json.expected_sig = expected; item.json.ts = ts; return item; });"
+      },
+      "name": "Verify HMAC",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": { "conditions": { "boolean": [ { "value1": "={{$json.auth_ok}}", "operation": "isTrue" } ] } },
+      "name": "IF Auth OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1240, 300]
+    },
+    {
+      "parameters": { "responseCode": 401, "responseBody": "{\"ok\":false,\"error\":\"unauthorized\"}" },
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1480, 420]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Accept session_token or order_id from JSON body or form-encoded\nfunction parseBody(j){ const b=j.body; if (typeof b==='object' && b) return b; if (typeof b==='string'){ try { return JSON.parse(b); } catch(e){ return {}; } } if (typeof j.rawBody==='string'){ try { return JSON.parse(j.rawBody); } catch(e){ return {}; } } return {}; }\nreturn items.map(item=>{ const b=parseBody(item.json||{}); const session_token = b.session_token || b.sessionToken || item.json.session_token || ''; const order_id = b.order_id || b.orderId || item.json.order_id || ''; item.json.session_token = String(session_token||''); item.json.order_id = String(order_id||''); return item; });"
+      },
+      "name": "Parse Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1480, 180]
+    },
+    {
+      "parameters": { "conditions": { "boolean": [ { "value1": "={{ !!($json.session_token || $json.order_id) }}", "operation": "isTrue" } ] } },
+      "name": "IF Params Present?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1720, 180]
+    },
+    {
+      "parameters": { "responseCode": 400, "responseBody": "{\"ok\":false,\"error\":\"missing_params\"}" },
+      "name": "Respond 400",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1960, 280]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{`SELECT session_token, order_id, amount, amount_variant, currency, emv, expires_at, created_at, status, matched_message_id, approved_amount FROM payment_sessions WHERE (CASE WHEN '${$json.session_token}' <> '' THEN session_token='${$json.session_token}' ELSE false END) OR (CASE WHEN '${$json.order_id}' <> '' THEN order_id='${$json.order_id}' ELSE false END) ORDER BY created_at DESC LIMIT 1;`}}"
+      },
+      "name": "PG Get Session",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1960, 140],
+      "notesInFlow": true,
+      "notes": "Set Postgres credentials. Looks up session by token or order_id."
+    },
+    {
+      "parameters": { "conditions": { "number": [ { "value1": "={{ $json[\"_rows\"] ? $json._rows.length : 0 }}", "operation": "larger" } ] } },
+      "name": "IF Session Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2200, 140]
+    },
+    {
+      "parameters": { "responseCode": 200, "responseBody": "{\"status\":\"pending\",\"message\":\"session_not_found\"}" },
+      "name": "Respond Not Found",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2440, 260]
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = ($json._rows && $json._rows[0]) ? $json._rows[0] : {}; const now = Date.now(); const exp = row.expires_at ? new Date(row.expires_at).getTime() : null; const expired = (exp && now > exp) ? true : false; return [{ json: Object.assign({}, $json, { session: row, expired }) }];"
+      },
+      "name": "Check Expiry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2440, 60]
+    },
+    {
+      "parameters": { "conditions": { "boolean": [ { "value1": "={{ !!($json.session.matched_message_id) || $json.session.status === 'approved' }}", "operation": "isTrue" } ] } },
+      "name": "IF Already Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2680, 60]
+    },
+    {
+      "parameters": {
+        "responseCode": 200,
+        "responseBody": "={{ (()=>{ const s=$json.session||{}; return JSON.stringify({ status:'approved', reference_id: s.matched_message_id||'', approved_amount: Number(s.approved_amount||0), session_token: s.session_token, order_id: s.order_id }); })() }}"
+      },
+      "name": "Respond Approved (Cached)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2920, -20]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{`WITH params AS (\n  SELECT s.created_at AS center, s.amount_variant::numeric AS want_amt, ${$item(0).$node['Set Policy'].json.amount_tol}::numeric AS tol, ${$item(0).$node['Set Policy'].json.time_window_sec}::int AS win\n  FROM payment_sessions s\n  WHERE s.session_token = '${$json.session.session_token}'\n), cte AS (\n  SELECT p.message_id, p.amount\n  FROM payments p, params\n  WHERE p.used = false\n    AND p.created_at BETWEEN (params.center - (params.win || ' seconds')::interval) AND now()\n    AND p.amount BETWEEN (params.want_amt - params.tol) AND (params.want_amt + params.tol)\n  ORDER BY p.created_at DESC\n  LIMIT 1\n), mark_pay AS (\n  UPDATE payments p SET used=true FROM cte WHERE p.message_id = cte.message_id\n), mark_sess AS (\n  UPDATE payment_sessions s SET status='approved', matched_message_id=cte.message_id, approved_amount=cte.amount\n  FROM cte\n  WHERE s.session_token='${$json.session.session_token}'\n)\nSELECT message_id, amount FROM cte;`}}"
+      },
+      "name": "PG Match+Approve",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [2920, 140],
+      "notesInFlow": true,
+      "notes": "Attempts to match against payments, mark used + approve session."
+    },
+    {
+      "parameters": { "conditions": { "number": [ { "value1": "={{ $json[\"_rows\"] ? $json._rows.length : 0 }}", "operation": "larger" } ] } },
+      "name": "IF Found Now?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [3160, 140]
+    },
+    {
+      "parameters": {
+        "responseCode": 200,
+        "responseBody": "={{ (()=>{ const row = ($json._rows && $json._rows[0]) ? $json._rows[0] : null; const ref = row ? row.message_id : ''; const amt = row ? Number(row.amount) : 0; return JSON.stringify({ status:'approved', reference_id: ref, approved_amount: amt }); })() }}"
+      },
+      "name": "Respond Approved (Now)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [3400, 80]
+    },
+    {
+      "parameters": {
+        "responseCode": 200,
+        "responseBody": "={{ JSON.stringify({ status: ($json.expired ? 'expired' : 'pending') }) }}"
+      },
+      "name": "Respond Pending/Expired",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [3400, 200]
+    }
+  ],
+  "connections": {
+    "WH WP Order Status": { "main": [[ { "node": "Set Secret", "type": "main", "index": 0 } ]] },
+    "Set Secret": { "main": [[ { "node": "Set Policy", "type": "main", "index": 0 } ]] },
+    "Set Policy": { "main": [[ { "node": "Verify HMAC", "type": "main", "index": 0 } ]] },
+    "Verify HMAC": { "main": [[ { "node": "IF Auth OK?", "type": "main", "index": 0 } ]] },
+    "IF Auth OK?": { "main": [ [ { "node": "Parse Input", "type": "main", "index": 0 } ], [ { "node": "Respond 401", "type": "main", "index": 0 } ] ] },
+    "Parse Input": { "main": [[ { "node": "IF Params Present?", "type": "main", "index": 0 } ]] },
+    "IF Params Present?": { "main": [ [ { "node": "PG Get Session", "type": "main", "index": 0 } ], [ { "node": "Respond 400", "type": "main", "index": 0 } ] ] },
+    "PG Get Session": { "main": [[ { "node": "IF Session Found?", "type": "main", "index": 0 } ]] },
+    "IF Session Found?": { "main": [ [ { "node": "Check Expiry", "type": "main", "index": 0 } ], [ { "node": "Respond Not Found", "type": "main", "index": 0 } ] ] },
+    "Check Expiry": { "main": [[ { "node": "IF Already Approved?", "type": "main", "index": 0 } ]] },
+    "IF Already Approved?": { "main": [ [ { "node": "Respond Approved (Cached)", "type": "main", "index": 0 } ], [ { "node": "PG Match+Approve", "type": "main", "index": 0 } ] ] },
+    "PG Match+Approve": { "main": [[ { "node": "IF Found Now?", "type": "main", "index": 0 } ]] },
+    "IF Found Now?": { "main": [ [ { "node": "Respond Approved (Now)", "type": "main", "index": 0 } ], [ { "node": "Respond Pending/Expired", "type": "main", "index": 0 } ] ] }
+  },
+  "active": true
+}

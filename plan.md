@@ -17,6 +17,33 @@ Slipless PromptPay flow (no bank/PSP APIs, no fees):
 - [ ] Security hardening: HMAC, HTTPS, payload guards, secret rotation, idempotency
 - [ ] Observability: logs, dead‑letter, metrics; tester checklist
 
+## Process
+
+1) Working Rhythm
+- Re-read core docs before any change: `plan.md`, `readme.txt`, `instructions.md`, `context.md`, `evaluation.md`, `feedback.md`, `ai respone.txt`, `AGENTS.md`.
+- Open a branch: `feature/<slug>` or `fix/<slug>`; small, scoped PRs only.
+- Use the PR template; include a concise change document (what/why/files/tests/next steps).
+
+2) Standards & Security
+- PHPCS clean; WP coding standards, escaping, and i18n for new strings.
+- Enforce HTTPS, HMAC; no secrets in repo. Trim secrets; add payload size guards.
+- For slipless flows, use `X-San8n-*` headers and keep n8n session fields: `session_token`, `amount_variant`, `expires_epoch`, `used`.
+
+3) Testing Matrix (per `evaluation.md`)
+- Admin settings: Media Picker, backend toggle, Test Backend UX.
+- Checkout: Classic + Blocks parity, static QR placeholder, slip upload path OK.
+- REST: `/wc-scanandpay/v1/verify-slip` happy/error paths; timeouts/retries filters.
+- Slipless (when touched): `/san8n/v1/qr/generate`, `/san8n/v1/order/status`, optional `/san8n/v1/order/paid`.
+- Backend: Tasker ingest dedup + exact-match; Postgres `payment_sessions` where applicable.
+
+4) Versioning & Docs
+- If code changes ship: bump `SAN8N_VERSION` and append `readme.txt` changelog (dated).
+- Always update docs affected by the change: `plan.md`, `AGENTS.md`, `instructions.md`, `context.md`, `evaluation.md`, `feedback.md`.
+- Attach the change document in the PR. Keep `json/` in sync with exported n8n workflows.
+
+5) Release
+- Merge via squash; tag release if version bumped. Close tasks in `plan.md` and track open items.
+
 ## Risks/Mitigations
 - n8n/WP downtime → timeouts, retries, clear status to user, callback fallback
 - Tasker reliability → device setup guide, retry/queue, dedup

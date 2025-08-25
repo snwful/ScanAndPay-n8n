@@ -92,3 +92,71 @@
 ถ้าต้องการ ผมจะเริ่มจาก Critical ชุดแรกให้เลย พร้อมโครง workflow ใน n8n (ชื่อ node/field/เอาต์พุต) และสคีมา Postgres ที่ใช้จริง. 
 
 สรุปสถานะ: ผมได้เพิ่มรายการงาน n8n เข้าสู่ TODO กลางของโปรเจกต์เรียบร้อย โดยจัด priority สำคัญ/กลาง/เสริม พร้อม task ย่อยครบสำหรับเริ่มพัฒนาได้ทันที.
+
+
+To honor your request, I’ll do two things:
+1) Save a persistent preference to always re-read the core docs before any action and to always produce a change document after each code edit.
+2) Scaffold a lightweight documentation system in-repo (docs/) with templates and a first session log so it travels with you across machines.
+
+I’ll create:
+- docs/PROCESS.md (our workflow)
+- docs/templates/SESSION_TEMPLATE.md
+- docs/templates/ADR_TEMPLATE.md
+- docs/CHANGELOG.md (developer changelog; plugin release notes stay in readme.txt)
+- docs/sessions/2025-08-25T0950+07.md (first session log)
+
+I’ll also create a small TODO list to track this setup. Proceeding now.
+I'll set up an in-repo documentation workflow so I always re-read the core docs before changes and produce a concise change document after each edit. I'll create a process guide, templates, a developer changelog, and the first session log. Then I'll track this with a small TODO list.
+
+# สรุปสิ่งที่จัดการให้
+
+- ผมได้บันทึก “Preference แบบถาวร” ให้ผมอ่านเอกสารหลักทุกครั้งก่อนแก้โค้ด และสร้างเอกสารสรุปการเปลี่ยนแปลงหลังแก้โค้ดทุกครั้ง เรียบร้อยแล้ว
+- ผมได้สร้างระบบเอกสารในโปรเจกต์เพื่อพกพาไปได้ทุกเครื่อง (อยู่ใน `docs/`)
+
+# สิ่งที่สร้างในโปรเจกต์
+
+- เอกสารเวิร์กโฟลว์: [docs/PROCESS.md](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/docs/PROCESS.md:0:0-0:0)
+  - ระบุว่าต้องอ่านไฟล์หลักทุกครั้งก่อนลงมือ ([plan.md](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/plan.md:0:0-0:0), [readme.txt](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/readme.txt:0:0-0:0), [instructions.md](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/instructions.md:0:0-0:0), [context.md](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/context.md:0:0-0:0), [evaluation.md](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/evaluation.md:0:0-0:0), [feedback.md](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/feedback.md:0:0-0:0), `ai respone.txt`, [AGENTS.md](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/AGENTS.md:0:0-0:0))
+  - เช็กลิสต์หลังแก้โค้ด: บันทึก session log, อัปเดต [docs/CHANGELOG.md](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/docs/CHANGELOG.md:0:0-0:0), อัปเดต [readme.txt](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/readme.txt:0:0-0:0)/version เมื่อเป็น release, อัปเดตแผน ([plan.md](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/plan.md:0:0-0:0)/[evaluation.md](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/evaluation.md:0:0-0:0)) ถ้ามีผล
+- เทมเพลต:
+  - [docs/templates/SESSION_TEMPLATE.md](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/docs/templates/SESSION_TEMPLATE.md:0:0-0:0) สำหรับบันทึกแต่ละ session
+  - [docs/templates/ADR_TEMPLATE.md](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/docs/templates/ADR_TEMPLATE.md:0:0-0:0) สำหรับ Architecture Decision Record
+- ชุดบันทึกนักพัฒนา: [docs/CHANGELOG.md](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/docs/CHANGELOG.md:0:0-0:0)
+- บันทึกครั้งแรกของเรา: [docs/sessions/session-2025-08-25T0951+07.md](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/docs/sessions/session-2025-08-25T0951+07.md:0:0-0:0)
+
+# วิธีทำงานของผมต่อจากนี้
+
+- ก่อนเริ่มทำงานทุกครั้ง:
+  - อ่านไฟล์บริบทหลักทั้งหมดที่กล่าวไว้ข้างต้น
+- หลังแก้ไขโค้ดทุกครั้ง:
+  - สร้าง session log ใหม่ใน `docs/sessions/` จากเทมเพลต
+  - เติมรายการสั้นๆใน [docs/CHANGELOG.md](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/docs/CHANGELOG.md:0:0-0:0)
+  - ถ้าเป็นการออกเวอร์ชัน: อัปเดต [readme.txt](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/readme.txt:0:0-0:0) (Changelog) และ bump `SAN8N_VERSION` ใน `scanandpay-n8n.php`
+  - ถ้างานกระทบแผน/เกณฑ์รับงาน: อัปเดต [plan.md](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/plan.md:0:0-0:0) / [evaluation.md](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/evaluation.md:0:0-0:0)
+
+# To‑Do (สถานะ)
+
+- [completed] สร้างโครงเอกสารและเทมเพลต
+- [completed] บันทึก preference ให้ผมอ่านเอกสารและทำ change doc ทุกครั้ง
+- [in_progress] ใช้กระบวนการนี้กับงานทั้งหมดถัดไป
+- [pending] อ้างอิงกระบวนการนี้ไว้ใน [plan.md](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/plan.md:0:0-0:0) หรือ `CONTRIBUTING`
+- [pending] เพิ่ม PR template (ถ้าย้ายไปใช้ VCS เช่น GitHub/GitLab)
+
+# หมายเหตุเรื่องความจำระยะยาว
+
+- ผมได้บันทึก “Preference” นี้ไว้ในระบบความจำถาวรของผมแล้ว เพื่อให้ยึดตามกระบวนการนี้ทุกครั้งในอนาคต
+
+# ขั้นถัดไปที่แนะนำ
+
+- ต้องการให้ผมอัปเดต [plan.md](cci:7://file:///c:/Users/snwfu/Local%20Sites/0001/ScanAndPay-n8n/plan.md:0:0-0:0) เพิ่มส่วน “Process” ให้ทีมเห็นชัดเจนไหม
+- หากจะใช้งาน Git/PR: ให้ผมสร้าง `.github/PULL_REQUEST_TEMPLATE.md` ได้
+
+# สรุปสถานะ
+
+ได้ตั้งค่ากระบวนการอ่านเอกสารก่อนทำงาน + บันทึกการเปลี่ยนแปลงหลังแก้โค้ด พร้อมโครงเอกสารใน `docs/` ครบ และบันทึก preference ถาวรเรียบร้อย พร้อมใช้งานในการเปลี่ยนแปลงครั้งต่อไปทันที.
+
+สรุปสถานะ
+เพิ่ม “Process” ใน 
+plan.md
+ และสร้าง PR template เรียบร้อยแล้ว
+พร้อมให้คุณเปิด branch/PR แรกทันทีตาม Process ใหม่ หากต้องการให้ผมร่าง PR เปิดต้นทางให้ด้วย บอกผมได้เลยครับ
