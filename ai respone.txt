@@ -160,3 +160,384 @@ I'll set up an in-repo documentation workflow so I always re-read the core docs 
 plan.md
  และสร้าง PR template เรียบร้อยแล้ว
 พร้อมให้คุณเปิด branch/PR แรกทันทีตาม Process ใหม่ หากต้องการให้ผมร่าง PR เปิดต้นทางให้ด้วย บอกผมได้เลยครับ
+
+
+
+
+ยืนยันตามนี้ครับ
+
+- ใช่ครับ ตอนนี้ฝั่ง WooCommerce จะส่งคำขอไปที่ `https://n8n.bankoffit.com/webhook/wp/qr-generate` (พร้อม HMAC) เพื่อรับ JSON ที่มี `emv` และ `qr_url` รวมถึงยอดที่บวกทศนิยม 2 ตำแหน่งแล้ว เพื่อเอามาแสดงใน QR placeholder ของ payment option
+- Workflow ทำงานครบ: สร้าง session, ตอบ JSON เต็ม, และ upsert ลง DB สำเร็จ พร้อมเดินหน้าทำ UI ได้
+
+ข้อแนะนำสั้นๆ
+- เพื่อความปลอดภัย แนะนำให้เรียก n8n ผ่าน “WP server-side proxy” (REST/AJAX) แทนการยิงตรงจาก Frontend เพื่อไม่ต้องเปิดเผย secret
+
+# แผนงาน (เลือกทำทีละ Task)
+- __t8a. Verify settings__
+  - เป้าหมาย: ตั้งค่า URL/Secret ใน Plugin ให้ตรงกับ webhook ที่ active และทดสอบผ่าน “Test Webhook”
+  - Files: [assets/js/admin.js](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/js/admin.js:0:0-0:0), [includes/class-san8n-admin.php](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-admin.php:0:0-0:0), [class-san8n-gateway.php](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-gateway.php:0:0-0:0)
+
+- __t8b. Backend Proxy (สำคัญ)__
+  - เป้าหมาย: เพิ่ม WP REST route หรือ AJAX endpoint ฝั่ง PHP สร้าง payload + HMAC แล้วยิงไป n8n และส่ง JSON กลับมาที่ Frontend
+  - ตรวจสิทธิ์: order เป็นของผู้ใช้/สถานะ pending-payment เท่านั้น
+  - Files: [includes/class-san8n-gateway.php](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-gateway.php:0:0-0:0), [includes/class-san8n-helper.php](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-helper.php:0:0-0:0) (หรือไฟล์ใหม่ `includes/class-san8n-rest.php`)
+
+- __t8c. PHP Integrations__
+  - เป้าหมาย: ใน [SAN8N_Gateway::payment_fields()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-gateway.php:287:4-403:5) ใส่ container/placeholder + ส่งค่า data (order_id, nonce, rest_url) ไป Frontend และ enqueue CSS/JS
+  - Files: [includes/class-san8n-gateway.php](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-gateway.php:0:0-0:0), [assets/css/checkout.css](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/css/checkout.css:0:0-0:0)
+
+- __t8d. Frontend JS (Classic Checkout)__
+  - เป้าหมาย: โหลด QR ผ่าน REST proxy, render `<img src=qr_url>`, แสดง amount และ countdown ถึง `expires_epoch`
+  - หมดเวลา: auto-refresh เรียก proxy เพื่อรับ QR ใหม่ แล้วอัปเดต UI
+  - Files: [assets/js/checkout-inline.js](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/js/checkout-inline.js:0:0-0:0)
+
+- __t8e. Frontend JS (Blocks Checkout)__
+  - เป้าหมาย: เพิ่ม integration สำหรับ Woo Blocks แสดง QR + countdown
+  - Files: [assets/js/blocks-integration.js](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/js/blocks-integration.js:0:0-0:0), [assets/css/blocks-checkout.css](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/css/blocks-checkout.css:0:0-0:0)
+
+- __t8f. Auto-refresh & Error Handling__
+  - เป้าหมาย: รีเฟรชเมื่อหมดเวลา, แสดงสถานะ Network/HMAC error, ปุ่ม “ลองอีกครั้ง”
+  - Files: [assets/js/checkout-inline.js](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/js/checkout-inline.js:0:0-0:0), [assets/js/blocks-integration.js](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/js/blocks-integration.js:0:0-0:0)
+
+- __t8g. i18n/UI polish__
+  - เป้าหมาย: แปลข้อความ, ปรับขนาด QR responsive, aria-labels
+  - Files: [languages/scanandpay-n8n.pot](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/languages/scanandpay-n8n.pot:0:0-0:0), CSS/JS ที่เกี่ยวข้อง
+
+- __t8h. QA & Tests__
+  - เป้าหมาย: ทดสอบบนหน้า order-pay/checkout, ตรวจ DB ว่ามี session ใหม่ทุกครั้ง, เพิ่ม Postman negative (HMAC fail, body เปล่า), ทดสอบหมดเวลา
+
+ข้อเสนอเริ่มต้น
+- แนะนำเริ่มที่ __t8b Backend Proxy__ ก่อน (ปลอดภัยสุดและเป็นฐานให้งาน Frontend)
+- จากนั้นทำ __t8c__ → __t8d__ → __t8f__ ตามลำดับ
+
+คุณอยากให้ผมเริ่มที่ t8b เลยไหม? หากตกลง ผมจะเตรียม REST route ฝั่ง PHP และโค้ดยิง n8n ให้พร้อมใช้งานทันที
+
+สรุปสถานะ: แก้ QR workflow และตรวจ DB เสร็จแล้ว พร้อมเริ่มงาน UI/Proxy ตามแผนข้างต้น
+
+I'll quickly search the codebase for any slipless verification or callback endpoints to confirm how auto-approval is triggered. This will determine whether Tasker/IMAP-based verification updates the WooCommerce order automatically.
+
+I'll open [includes/class-san8n-gateway.php](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-gateway.php:0:0-0:0) to confirm how [process_payment()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-gateway.php:585:4-715:5) handles slipless mode and whether an external verifier (Tasker/IMAP) can auto-complete the WooCommerce order. This tells us if the order will proceed automatically when the paid amount matches.
+
+I'll open the frontend script to inspect how fetchAndRenderQR(), init(), and initializeState() are wired, and also the REST API class to see how verification and order updates are handled. This will let me recommend the safest option and confirm auto-processing behavior.
+
+I'll search the codebase for any REST endpoints or functions that update orders asynchronously (e.g., mark paid) in slipless mode, such as routes that call payment_complete() or update order status from external verifiers. This confirms whether Tasker/IMAP-based verification can auto-complete orders.
+
+
+
+
+
+# คำแนะนำเรื่องการเรียกสร้าง QR ครั้งแรก
+
+จากโค้ดใน [assets/js/checkout-inline.js](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/js/checkout-inline.js:0:0-0:0):
+- [init()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/js/checkout-inline.js:16:8-21:9) เรียก [initializeState()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/js/checkout-inline.js:47:8-53:9) แล้วก็เรียก [fetchAndRenderQR()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/js/checkout-inline.js:79:8-148:9) อีกครั้ง (บรรทัด 21–22)
+- [initializeState()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/js/checkout-inline.js:47:8-53:9) ก็เรียก [fetchAndRenderQR()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/js/checkout-inline.js:79:8-148:9) (บรรทัด 52–53)
+- มี event `updated_checkout` ที่เรียก `debouncedFetchQR` อยู่แล้ว (บรรทัด 38)
+
+จึงมีการยิงซ้ำตอนเริ่มหน้า
+
+## วิธีที่สมเหตุสมผลและปลอดภัยสุด
+- __เลือกแบบ “Debounce ทุกจุดที่เป็น on-load/เปลี่ยนสถานะ”__:
+  - เปลี่ยนให้ทุกจุดที่เรียกตรง [fetchAndRenderQR()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/js/checkout-inline.js:79:8-148:9) (init, initializeState, payment_method_selected) ไปใช้ `debouncedFetchQR()` แทน
+  - รักษา `updated_checkout` ให้ยังใช้ `debouncedFetchQR` ตามเดิม
+  - เพิ่ม “in-flight guard” ใน [fetchAndRenderQR()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/js/checkout-inline.js:79:8-148:9) (เช่นตัวแปร `qrRequestInFlight`) กันยิงทับซ้อน
+- เหตุผล:
+  - ลดการยิงซ้ำหลาย event ช่วงเริ่มหน้า
+  - ยังคงความทนทาน ถ้า `updated_checkout` ไม่ถูกยิงในบาง flow ก็ยังมี init/initializeState ที่ “debounced” ไว้ช่วยดัก
+  - Debounce ช่วย coalesce เหตุการณ์เริ่มต้นหลายตัวให้เหลือ call เดียว
+
+ถ้าจะเลือกตามตัวเลือกที่ให้มา:
+- __Option C (ใช้ debouncedFetchQR แทนทุก direct call บนโหลดแรก)__ = เสถียรสุด/อนาคตปลอดภัยสุด
+- หากอยากเปลี่ยนให้น้อยสุด: เลือก __Option A__ (ตัด call ใน [init()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/js/checkout-inline.js:16:8-21:9) ออก เหลือ [initializeState()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/js/checkout-inline.js:47:8-53:9) + `updated_checkout`) ก็ใช้ได้ แต่มีความเสี่ยงเล็กน้อยในบางหน้าที่ `updated_checkout` ไม่วิ่ง
+
+นอกจากนี้ แนะนำเพิ่ม
+- __In-flight dedupe__: กันร้องขอ QR ซ้ำซ้อน
+- (ถ้าต้องการ) __throttle time window สั้นๆ (~300–500ms)__ ใน [fetchAndRenderQR()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/js/checkout-inline.js:79:8-148:9) เผื่อมีการเรียกติดกันนอก debounce
+
+# ความสอดคล้องของข้อมูลออเดอร์/ลูกค้า
+- ตัวเลขยอดและ session token ถูกกำหนดจากฝั่ง PHP ใน [SAN8N_Gateway.payment_fields()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-gateway.php:330:4-466:5) และส่งไปที่ `qr-proxy` พร้อม `session_token`, `order_total` จาก DOM
+- การเรียก QR แค่ครั้งเดียวตอนเริ่ม (แล้วให้ `updated_checkout` เป็นตัว refresh เมื่อยอดเปลี่ยน) ทำให้ยอดบน QR __ยังตรงกับของลูกค้า__ เพราะเมื่อมียอดเปลี่ยน WC จะยิง `updated_checkout` แล้วเรา debounce เรียกใหม่อัตโนมัติ
+- ดังนั้นการ “ทำ QR แค่ครั้งเดียวตอนโหลด” + “refresh เมื่อยอดเปลี่ยน” จะยังคงความถูกต้องของยอด/ข้อมูลลูกค้า
+
+# สถานะ auto ดำเนินการหลังจ่าย (สำคัญ)
+อิงโค้ดตอนนี้:
+- ถ้าเป็นโหมดอัพสลิป (`verification_mode = slip_required`): เมื่อ `POST /verify-slip` อนุมัติแล้ว ใน [includes/class-san8n-rest-api.php::verify_slip()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-rest-api.php:310:4-414:5) มี `payment_complete()` ให้ที่ออเดอร์นั้นเลย ออเดอร์จะเดินต่อแบบ auto
+- ถ้าเป็นโหมด __Slipless__ (`verification_mode = slipless`): ใน [includes/class-san8n-gateway.php::process_payment()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-gateway.php:585:4-715:5) จะตั้งสถานะออเดอร์เป็น `on-hold` และจบ ไม่มี webhook สำหรับ Tasker/IMAP มายิงกลับเพื่อ complete ออเดอร์อยู่ในปลั๊กอินตอนนี้
+
+สรุป: ถ้าจะให้ “Tasker/IMAP ยืนยันยอดตรงแล้วออเดอร์เดินต่อ auto” ในโหมด Slipless ต้องมี backend (เช่น n8n) ไปอัปเดตสถานะออเดอร์ใน WooCommerce เอง (ผ่าน WooCommerce REST API) หรือเราจะเพิ่ม REST endpoint ปลอดภัย (HMAC) ในปลั๊กอิน เช่น `/san8n/approve` ให้ Tasker/n8n เรียกเพื่อ `payment_complete()` ให้
+
+# ถ้าต้องการ ผมเสนอได้ 2 ทาง
+- __ทางเร็ว__: ให้ n8n ใช้ WooCommerce REST API อัปเดตสถานะออเดอร์เป็น paid/processing พร้อมแนบ order note + reference_id
+- __ทางปลอดภัย/สวยงาม__: ผมเพิ่ม endpoint ในปลั๊กอิน (เช่น `POST /wp-json/san8n/v1/approve`) ใส่ HMAC (ใช้ shared_secret เดียวกับ QR) รับ `order_id`, `amount`, `reference_id`, `timestamp` แล้ว validate และ `payment_complete()` ให้
+
+ต้องการให้ผมแก้ส่วน Debounce/Dedupe ในไฟล์ [assets/js/checkout-inline.js](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/js/checkout-inline.js:0:0-0:0) ตอนนี้เลยไหม แล้วต่อด้วยการเพิ่ม endpoint อนุมัติ slipless สำหรับ n8n/Tasker? 
+
+สรุปสถานะ:
+- แนะนำใช้ Debounce ทุกจุด + in-flight guard เพื่อให้เรียก QR ครั้งเดียวบนโหลดแรกและไม่ซ้ำซ้อน
+- โหมด Slipless จะ auto ดำเนินการก็ต่อเมื่อ backend ไปอัปเดตออเดอร์ใน WooCommerce (ปลั๊กอินยังไม่มี webhook ตัวนี้)
+
+
+
+I'll quickly search the gateway code to confirm how [validate_fields()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-gateway.php:552:4-589:5) handles the transient approval and whether it already reads `san8n_tok_...`, so I can design the flow to plug in seamlessly. Then I'll update your TODO list to include the new endpoints and the JS poller work.
+
+
+
+# Slipless Auto-Approve Flow (ไม่ต้องกด Place order)
+
+ด้านล่างคือแผนงาน “ครบ” ทั้งฝั่ง WP, JS, และ n8n ที่สอดคล้องกับโค้ดปัจจุบันใน:
+- [includes/class-san8n-rest-api.php](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-rest-api.php:0:0-0:0) (REST)
+- [includes/class-san8n-gateway.php](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-gateway.php:0:0-0:0) (Gateway)
+- [assets/js/checkout-inline.js](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/js/checkout-inline.js:0:0-0:0) (Frontend)
+
+อิงนโยบายล่าสุด:
+- หน้าต่างเวลา 10 นาที (600 วินาที)
+- Exact amount match (0 tolerance) สำหรับ Order Status
+- ใช้ HMAC, correlation_id, และ idempotency ด้วย `session_token`
+
+---
+
+## ภาพรวม Flow (Happy Path)
+1) ผู้ใช้เลือกวิธีชำระ “Scan & Pay (n8n)” บนหน้า Checkout  
+   - JS เรียก `/qr-proxy` เพื่อได้ `ref_code` และ `expires_epoch` (มีแล้ว)
+   - JS เก็บ `session_token`, `amount`, `currency` (มีอยู่ใน localized params)
+
+2) ระบบภายนอก (Tasker/n8n + Postgres) ตรวจจับการจ่ายจริง และ “Callback เข้า WP”
+   - n8n POST ไปที่ `/async-approve` พร้อม HMAC + `{session_token, amount, matched_at, ref_code?, order_id?}`
+   - WP เก็บสถานะอนุมัติเป็น transient คีย์ `san8n_tok_<sha256(session_token)>` TTL 600 วินาที
+
+3) หน้า Checkout “poll” สถานะทุก 2–3 วินาที
+   - JS GET `/payment-status?session_token=...`
+   - ถ้า `{approved:true}`, แสดง “Paid/Approved” แล้ว “auto-submit ฟอร์ม checkout” แทนปุ่ม
+
+4) Server สร้างออเดอร์ (WooCommerce)
+   - [SAN8N_Gateway::validate_fields()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-gateway.php:552:4-589:5) ตรวจ transient/Session ว่า approved แล้วให้ผ่าน
+   - [SAN8N_Gateway::process_payment()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-gateway.php:591:4-721:5) (โหมด slipless):
+     - ถ้า pre-approved: mark paid/processing ทันที
+     - ถ้ายัง: สร้างออเดอร์สถานะ on-hold แล้วรอ async ยืนยันภายหลัง
+
+---
+
+## REST API Design
+
+ใช้ namespace เดียวกับ `/verify-slip` ใน [includes/class-san8n-rest-api.php](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-rest-api.php:0:0-0:0)
+
+1) POST `/async-approve` (สำหรับ n8n/Tasker Callback)
+- Auth: HMAC แบบเดียวกับที่ใช้คุย n8n (ตรวจลายเซ็น, timestamp ภายใน ±300s)
+- Body (JSON):
+  - `session_token` (required)
+  - `amount` (required, number; สกุลเงินอ้างอิงจากร้าน/checkout)
+  - `matched_at` (required, epoch sec)
+  - `ref_code` (optional, string)
+  - `order_id` (optional, int)
+  - `currency` (optional; ถ้าส่งมาให้ verify ตรงกับ `get_woocommerce_currency()`)
+  - `correlation_id` (optional)
+- Behavior:
+  - Validate HMAC + timestamp + amount/currency match policy
+  - Set transient: key `san8n_tok_<sha256(session_token)>`, TTL 600s, value:
+    ```
+    {
+      approved: true,
+      approved_amount: <number>,
+      matched_at: <epoch>,
+      reference_id: <ref_code || ''>,
+      order_id: <int|null>,
+      correlation_id: <string|null>
+    }
+    ```
+  - Idempotent: ถ้าซ้ำ ให้ 200 พร้อม payload เดิม
+- Response: `200 OK {ok:true}`
+
+2) GET `/payment-status?session_token=...` (ให้หน้า Checkout poll)
+- Auth: Nonce (X-WP-Nonce) จาก localized params (เหมือน `/verify-slip`)
+- Behavior:
+  - อ่าน transient ตามคีย์ `san8n_tok_<sha256(session_token)>`
+  - ถ้าพบและ `approved:true` => 200:
+    ```
+    {
+      approved: true,
+      approved_amount,
+      reference_id,
+      matched_at
+    }
+    ```
+  - ถ้าไม่พบ => 200 `{approved:false}`
+- Rate limit: ใช้ตัวเดียวกับในคลาส (มี [check_rate_limit()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-rest-api.php:386:4-408:5) แล้ว)
+
+Error mapping ใช้ [get_error_status_code()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-rest-api.php:558:4-570:5) และ [get_error_message()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-rest-api.php:662:4-674:5) แบบเดียวกับ endpoint อื่น
+
+---
+
+## Frontend JS Design ([assets/js/checkout-inline.js](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/js/checkout-inline.js:0:0-0:0))
+
+เพิ่ม “Slipless Poller” สำหรับช่องทางนี้:
+- เงื่อนไขเริ่ม poll:
+  - เลือก method เป็น `scanandpay-n8n`
+  - มี `session_token`, `amount`, `currency`
+- Interval: 2–3 วินาที (config ได้จาก localized params)
+- ทำงาน:
+  - GET `/payment-status?session_token=...`
+  - ถ้า `{approved:true}`:
+    - อัปเดต UI: “Payment verified”
+    - ใส่ hidden fields ลง form:
+      - `san8n_approval_status=approved`
+      - `san8n_reference_id` (จาก response)
+      - `san8n_approved_amount`
+    - “ป้องกัน submit ซ้ำ” ด้วย flag ใน JS
+    - เรียก `$('form.checkout').trigger('submit')`
+    - หยุด poll ทันที
+- หยุด poll เมื่อ:
+  - เปลี่ยนวิธีชำระเงิน
+  - หนีหน้า / unload
+  - Timeout (เช่น 10 นาที) => แจ้งเตือนหมดเวลา + ให้ refresh QR (มีอยู่แล้ว)
+- UI/Message: reuse i18n เดิม เช่น “Approved”, “Verifying...”, “Timeout”
+
+หมายเหตุ: โค้ดปัจจุบันรองรับ auto-submit หลัง approve ในสาย `verify-slip` แล้ว แนวคิดเหมือนกัน
+
+---
+
+## Gateway Behavior ([includes/class-san8n-gateway.php](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-gateway.php:0:0-0:0))
+
+1) [validate_fields()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-gateway.php:552:4-589:5)  
+- ถ้าโหมดไม่ใช่ slipless: ยืนยันว่ามี `san8n_approval_status=approved` หรือคืน error  
+- ถ้า slipless: อนุญาต แต่ถ้ามี transient โดย `session_token`:
+  - คัดลอกค่าจาก transient เข้า WC session:
+    - `san8n_approved=true`
+    - `san8n_reference_id`
+    - `san8n_approved_amount`
+    - (ดังที่โค้ดมี logic รองรับแล้ว)
+
+2) [process_payment($order_id)](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-gateway.php:591:4-721:5)  
+- ถ้า slipless และ “pre-approved”:
+  - ทำ order note: ref + amount
+  - “mark paid” (processing/completed ตามนโยบาย fulfillment)
+- ถ้า slipless แต่ยังไม่ approved:
+  - set on-hold รอ async ยืนยันภายหลัง (คง behavior เดิม)
+
+3) Persist `ref_code` ไปยัง order meta  
+- มี [capture_ref_code_on_order()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-gateway.php:742:4-764:5) อยู่แล้ว ใช้ร่วมกับ ref จาก session
+
+---
+
+## Security & Idempotency
+
+- HMAC: ใช้มาตรฐานเดียวกับที่ใช้กับ n8n เดิม (header + timestamp + body hash)
+- Window: ±300s (หรือเท่า `old_timestamp` ในระบบ)
+- Idempotency: ใช้ `session_token` เป็นคีย์หลัก + TTL 600s
+- Exact amount: อิง memory ล่าสุด (0 tolerance) สำหรับ Order Status; OCR ยัง ±0.50 ได้ตามนโยบายเดิม
+- Rate limit: ใช้ [check_rate_limit()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-rest-api.php:386:4-408:5) (มีแล้ว)
+- Logging: แนบ `correlation_id` ในทุก event, ใช้ `$this->logger` ตาม pattern ในไฟล์
+
+---
+
+## Edge Cases
+
+- Amount mismatch/currency mismatch => `/async-approve` คืน 400 + log
+- Transient หมดอายุ แต่ลูกค้าเพิ่ง submit => แจ้งหมดเวลา ให้ refresh QR
+- Double webhook/callback => Idempotent; response 200 พร้อม payload เดิม
+- เปลี่ยนวิธีชำระกลางคัน => JS หยุด poll ทันที
+- Ref_code ไม่ส่งมาใน callback => ใช้ค่าที่ UI แสดงเก็บใน order meta ตอนสร้างออเดอร์ได้
+
+---
+
+## ขยายในอนาคต
+
+- แทน polling: ใช้ Server-Sent Events หรือ WebSocket เพื่อผลักสถานะแบบ realtime
+- รองรับ Woo Blocks (ปัจจุบันโฟกัส Classic)
+- เพิ่ม setting:
+  - Enable Slipless Auto-Submit
+  - Poll interval (ms), Max duration (sec)
+  - Copy to clipboard ปุ่ม ref_code
+
+---
+
+## ตัวอย่าง Payload/Response
+
+- POST `/async-approve` (by n8n)
+```json
+{
+  "session_token": "d4c2...b9",
+  "amount": 1234.00,
+  "matched_at": 1724639423,
+  "ref_code": "845217",
+  "currency": "THB",
+  "order_id": null,
+  "correlation_id": "qrstat-abc123"
+}
+```
+
+- GET `/payment-status?session_token=...` (by JS)
+```json
+{
+  "approved": true,
+  "approved_amount": 1234.00,
+  "reference_id": "845217",
+  "matched_at": 1724639423
+}
+```
+
+---
+
+## Mapping ไปยังงานในโค้ด (เช็คจาก TODO ล่าสุด)
+
+- __[REST]__ `/async-approve` with HMAC + idempotency + TTL (10m)
+- __[REST]__ `/payment-status` คืน approved/meta
+- __[JS]__ Slipless poller + auto-submit + guard
+- __[Gateway]__ Slipless: pre-approved => mark paid; else on-hold
+- __[Settings]__ Toggle + interval/timeout + expose via localized params
+- __[n8n]__ อัปเดต Order Status workflow โพสต์มา `/async-approve` เมื่อ match
+
+ผมได้อัปเดตรายการงานไว้ใน TODO แล้ว เพื่อให้เห็นภาพความคืบหน้าและลำดับทำงาน
+
+---
+
+# Recommended Actions
+- ยืนยันให้ผมลงมือ implement 2 endpoints + JS poller + gateway pre-approved path ตามแผนนี้
+- บอกช่วงเวลาที่สะดวกสำหรับทดสอบบนหน้า Checkout จริง เพื่อผมจะ verify ข้ามทั้ง UI/REST/n8n
+
+# Summary
+ผมออกแบบ Slipless Auto-Approve flow แบบครบถ้วน ปลอดภัย และเข้ากับโค้ดปัจจุบัน โดยเพิ่มสอง REST endpoints, JS poller, และ gateway behavior สำหรับ pre-approval. รายการงานถูกเพิ่มใน TODO พร้อมลำดับทำงาน เรียบร้อย รอคุณยืนยันเพื่อเริ่มลงมือแก้โค้ด.
+
+
+
+## Short answer
+Prioritize fixing the “double/nested webhook” first. It’s a correctness and reliability blocker. If callbacks duplicate, the new slipless endpoints/poller will inherit race conditions (multiple approvals, conflicting states, inconsistent UX).
+
+## Why fix webhook duplicates first
+- __[data integrity]__ Prevent double-approval, double order notes, status flapping.
+- __[retry noise]__ n8n/Tasker retries + nested flows can spam `/async-approve` later.
+- __[easier debugging]__ One clean callback path simplifies observing the new flow.
+- __[future proof]__ SSE/WebSockets or polling all depend on a single, idempotent approval source.
+
+## Minimal, high-impact fixes for the webhook issue
+- __[single callback path]__ Ensure only one n8n node/workflow is responsible for calling WP (avoid nested or chained callbacks).
+- __[early 200 ACK]__ Top-of-webhook immediate 200 to stop upstream retries; process async downstream.
+- __[idempotency key]__ Use `session_token` as the primary idempotency key (best), or fall back to a hash of `{ref_code|amount|currency|time_bin}`.
+- __[DB-level dedupe]__ Postgres UPSERT with unique index:
+  - Table: `approvals(session_token primary key, approved_amount, matched_at, ref_code, created_at)`
+  - Insert once: `INSERT ... ON CONFLICT (session_token) DO NOTHING`
+  - Only proceed to call WP if row was inserted.
+- __[mark used]__ Keep existing `used=true` on matched payment rows; maintain anti-reuse on slip_hash (already in memories).
+- __[logging]__ Attach `correlation_id` to all logs and callback payloads.
+
+## Then implement slipless flow
+Once dedupe is in place:
+1) __REST__ add in [includes/class-san8n-rest-api.php](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-rest-api.php:0:0-0:0)
+   - `POST /async-approve` with HMAC, idempotent by `session_token`, TTL 10m.
+   - `GET /payment-status?session_token=...` for the checkout poller (nonce-protected).
+2) __JS__ in [assets/js/checkout-inline.js](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/assets/js/checkout-inline.js:0:0-0:0)
+   - Poll every 2–3s when `scanandpay-n8n` is selected.
+   - On `{approved:true}`, set hidden fields (`san8n_approval_status=approved`, `san8n_reference_id`, `san8n_approved_amount`) and auto-submit.
+3) __Gateway__ in [includes/class-san8n-gateway.php](cci:7://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-gateway.php:0:0-0:0)
+   - Slipless + pre-approved: mark paid immediately in [process_payment()](cci:1://file:///Users/BANKOFFIT/Documents/Github%20Clone/ScanAndPay-n8n/includes/class-san8n-gateway.php:591:4-721:5).
+   - Else: on-hold (current behavior).
+4) __Settings__
+   - Optional toggles: Enable Slipless Auto-Submit, poll interval, timeout.
+
+## Recommended next steps
+- __[Step 1]__ Fix webhook duplicates in n8n/Tasker (single callback, early 200, DB UPSERT dedupe).
+- __[Step 2]__ Implement `/async-approve` + `/payment-status`.
+- __[Step 3]__ Add JS slipless poller + auto-submit.
+- __[Step 4]__ Gateway pre-approved fast-path.
+- __[Step 5]__ Test end-to-end on checkout.
+
+I’ve added “Investigate and fix double/nested webhook callbacks” to the TODOs as high priority and listed the slipless tasks beneath it.  
+If you confirm, I’ll start with a concise dedupe plan (schema + n8n node placement) and then implement the WP endpoints and JS poller.

@@ -19,6 +19,294 @@ class SAN8N_REST_API {
         }
     }
 
+    /**
+     * Proxy QR generation to n8n with HMAC headers
+     */
+    public function qr_proxy($request) {
+        $correlation_id = $this->logger->get_correlation_id();
+        try {
+            // Normalize and sanitize inputs similar to verify_slip
+            $order_id_raw = $request->get_param('order_id');
+            $order_id = is_callable('absint') ? call_user_func('absint', $order_id_raw) : abs((int) $order_id_raw);
+
+            $order_total_raw = $request->get_param('order_total');
+            $order_total_str = (string) $order_total_raw;
+            if (strpos($order_total_str, ',') !== false && strpos($order_total_str, '.') === false) {
+                $order_total_str = str_replace(',', '.', $order_total_str);
+            } else {
+                $order_total_str = str_replace(',', '', $order_total_str);
+            }
+            $order_total = is_numeric($order_total_str) ? (float) $order_total_str : 0.0;
+
+            $session_token_raw = $request->get_param('session_token');
+            $session_token = is_callable('sanitize_text_field') ? call_user_func('sanitize_text_field', $session_token_raw) : (is_string($session_token_raw) ? $session_token_raw : '');
+
+            $settings = is_callable('get_option') ? call_user_func('get_option', SAN8N_OPTIONS_KEY, array()) : array();
+            $qr_url = $this->derive_qr_generate_url($settings);
+            // Do not early-return here; we may still build a fallback after computing currency/ref_code.
+
+            // Generate or reuse a numeric reference code stored in WC session
+            $ref_code = null;
+            $wc = is_callable('WC') ? call_user_func('WC') : null;
+            if ($wc && isset($wc->session) && $wc->session) {
+                $ttl = (defined('MINUTE_IN_SECONDS') ? constant('MINUTE_IN_SECONDS') : 60) * 10; // 10 minutes
+                $now = time();
+                $existing = method_exists($wc->session, 'get') ? $wc->session->get('san8n_ref_code') : null;
+                $gen_ts = method_exists($wc->session, 'get') ? intval($wc->session->get('san8n_ref_code_time')) : 0;
+                if (!empty($existing) && ($now - $gen_ts) < $ttl) {
+                    $ref_code = (string) $existing;
+                } else {
+                    try {
+                        // 7-8 digit numeric string
+                        $num = random_int(1000000, 99999999);
+                        $ref_code = (string) $num;
+                    } catch (Exception $e) {
+                        $ref_code = (string) mt_rand(1000000, 99999999);
+                    }
+                    if (method_exists($wc->session, 'set')) {
+                        $wc->session->set('san8n_ref_code', $ref_code);
+                        $wc->session->set('san8n_ref_code_time', $now);
+                    }
+                }
+            }
+
+            // Fallback when WC session is unavailable in REST context: cache by session_token
+            if (empty($ref_code)) {
+                $ttl = (defined('MINUTE_IN_SECONDS') ? constant('MINUTE_IN_SECONDS') : 60) * 10; // 10 minutes
+                $tok_key = 'san8n_ref_tok_' . hash('sha256', (string) $session_token);
+                $existing_tok = is_callable('get_transient') ? call_user_func('get_transient', $tok_key) : false;
+                if (!empty($existing_tok)) {
+                    $ref_code = (string) $existing_tok;
+                } else {
+                    try {
+                        $num = random_int(1000000, 99999999);
+                        $ref_code = (string) $num;
+                    } catch (Exception $e) {
+                        $ref_code = (string) mt_rand(1000000, 99999999);
+                    }
+                    if (is_callable('set_transient')) {
+                        call_user_func('set_transient', $tok_key, $ref_code, $ttl);
+                    }
+                }
+                // If WC session becomes available later, persist there too for consistency
+                if (empty($existing) && $wc && isset($wc->session) && $wc->session && method_exists($wc->session, 'set')) {
+                    $wc->session->set('san8n_ref_code', $ref_code);
+                    $wc->session->set('san8n_ref_code_time', time());
+                }
+            }
+
+            $currency = function_exists('get_woocommerce_currency') ? call_user_func('get_woocommerce_currency') : 'THB';
+
+            // Server-side idempotency cache: reuse recent QR for the same session + amount + currency
+            $cache_key = null;
+            $cached = null;
+            if (is_callable('get_transient')) {
+                $amt_key = number_format((float) $order_total, 2, '.', '');
+                $cache_key = 'san8n_qr_' . hash('sha256', (string) $session_token . '|' . $amt_key . '|' . (string) $currency);
+                $maybe = call_user_func('get_transient', $cache_key);
+                if (is_array($maybe)) {
+                    // If backend provided expiry, ensure it's not already expired (leave a small safety window)
+                    $now = time();
+                    $exp_ok = !isset($maybe['expires_epoch']) || (intval($maybe['expires_epoch']) - $now) > 2;
+                    if ($exp_ok) {
+                        $resp_payload = array(
+                            'order_id' => isset($maybe['order_id']) ? $maybe['order_id'] : $order_id,
+                            'amount' => isset($maybe['amount']) ? $maybe['amount'] : $order_total,
+                            'currency' => isset($maybe['currency']) ? $maybe['currency'] : $currency,
+                            'session_token' => isset($maybe['session_token']) ? $maybe['session_token'] : $session_token,
+                            'emv' => isset($maybe['emv']) ? $maybe['emv'] : null,
+                            'qr_url' => isset($maybe['qr_url']) ? $maybe['qr_url'] : null,
+                            'expires_epoch' => isset($maybe['expires_epoch']) ? $maybe['expires_epoch'] : null,
+                            'ref_code' => isset($maybe['ref_code']) ? $maybe['ref_code'] : $ref_code,
+                            'correlation_id' => $correlation_id,
+                        );
+                        return class_exists('WP_REST_Response') ? new WP_REST_Response($resp_payload, 200) : $resp_payload;
+                    }
+                }
+            }
+
+            // If no dynamic QR backend is configured, return a fallback payload carrying ref_code and expiry
+            if (empty($qr_url)) {
+                $now = time();
+                $settings2 = is_callable('get_option') ? call_user_func('get_option', SAN8N_OPTIONS_KEY, array()) : array();
+                $default_qr_expiry = isset($settings2['qr_expiry_seconds']) ? max(15, intval($settings2['qr_expiry_seconds'])) : 60;
+
+                $resp_payload = array(
+                    'order_id' => $order_id,
+                    'amount' => $order_total,
+                    'currency' => $currency,
+                    'session_token' => (string) $session_token,
+                    'emv' => null,
+                    'qr_url' => null, // static image remains
+                    'expires_epoch' => $now + $default_qr_expiry,
+                    'ref_code' => (string) $ref_code,
+                    'correlation_id' => $correlation_id,
+                );
+
+                // Cache this fallback payload keyed by session+amount+currency for idempotency
+                if (is_callable('set_transient')) {
+                    $amt_key = number_format((float) $order_total, 2, '.', '');
+                    // String concatenation uses '.' in PHP
+                    $cache_key = 'san8n_qr_' . hash('sha256', (string) $session_token . '|' . $amt_key . '|' . (string) $currency);
+                    call_user_func('set_transient', $cache_key, array(
+                        'order_id' => $resp_payload['order_id'],
+                        'amount' => $resp_payload['amount'],
+                        'currency' => $resp_payload['currency'],
+                        'session_token' => $resp_payload['session_token'],
+                        'emv' => $resp_payload['emv'],
+                        'qr_url' => $resp_payload['qr_url'],
+                        'expires_epoch' => $resp_payload['expires_epoch'],
+                        'ref_code' => $resp_payload['ref_code'],
+                        'cached_at' => $now,
+                    ), max(5, $default_qr_expiry - 2));
+                }
+
+                return class_exists('WP_REST_Response') ? new WP_REST_Response($resp_payload, 200) : $resp_payload;
+            }
+
+            $payload_arr = array(
+                'order_id' => $order_id,
+                'amount' => $order_total,
+                'currency' => $currency,
+                'session_token' => (string) $session_token,
+                'ref_code' => (string) $ref_code,
+            );
+            $payload = function_exists('wp_json_encode') ? call_user_func('wp_json_encode', $payload_arr) : json_encode($payload_arr);
+
+            $timestamp = time();
+            $body_hash = hash('sha256', (string) $payload);
+            $secret = isset($settings['shared_secret']) ? (string) $settings['shared_secret'] : '';
+            $signature = hash_hmac('sha256', $timestamp . "\n" . $body_hash, (string) $secret);
+
+            $headers = array(
+                'Content-Type' => 'application/json',
+                'X-PromptPay-Timestamp' => $timestamp,
+                'X-PromptPay-Signature' => $signature,
+                'X-PromptPay-Version' => '1.0',
+                'X-Correlation-ID' => (string) $correlation_id,
+            );
+
+            $timeout = is_callable('apply_filters') ? call_user_func('apply_filters', 'san8n_qr_proxy_timeout', 8) : 8;
+            $response = is_callable('wp_remote_post') ? call_user_func('wp_remote_post', $qr_url, array(
+                'timeout' => $timeout,
+                'sslverify' => true,
+                'headers' => $headers,
+                'body' => (string) $payload,
+            )) : null;
+
+            $is_err = is_callable('is_wp_error') ? call_user_func('is_wp_error', $response) : ($response === null);
+            if ($is_err) {
+                $msg = $this->get_error_message('verifier_unreachable');
+                return new WP_Error('verifier_unreachable', $msg, array('status' => 502));
+            }
+
+            $resp_code = is_callable('wp_remote_retrieve_response_code') ? call_user_func('wp_remote_retrieve_response_code', $response) : 200;
+            $resp_body = is_callable('wp_remote_retrieve_body') ? call_user_func('wp_remote_retrieve_body', $response) : '';
+            $data = json_decode($resp_body, true);
+            if (!is_array($data)) {
+                $data = array('error' => 'bad_response');
+            }
+
+            // Normalize and include correlation id
+            $resp_payload = array(
+                'order_id' => isset($data['order_id']) ? $data['order_id'] : $order_id,
+                'amount' => isset($data['amount']) ? $data['amount'] : $order_total,
+                'currency' => isset($data['currency']) ? $data['currency'] : $currency,
+                'session_token' => isset($data['session_token']) ? $data['session_token'] : $session_token,
+                'emv' => isset($data['emv']) ? $data['emv'] : null,
+                'qr_url' => isset($data['qr_url']) ? $data['qr_url'] : null,
+                'expires_epoch' => isset($data['expires_epoch']) ? $data['expires_epoch'] : null,
+                'ref_code' => isset($data['ref_code']) ? $data['ref_code'] : $ref_code,
+                'correlation_id' => $correlation_id,
+            );
+
+            // Cache successful responses to avoid duplicate upstream calls
+            if ($resp_code >= 200 && $resp_code < 300 && is_callable('set_transient') && isset($cache_key)) {
+                $now = time();
+                $expires_epoch_val = isset($resp_payload['expires_epoch']) ? intval($resp_payload['expires_epoch']) : 0;
+                // Derive TTL: prefer backend expiry; otherwise use plugin default (qr_expiry_seconds, default 60)
+                $settings2 = is_callable('get_option') ? call_user_func('get_option', SAN8N_OPTIONS_KEY, array()) : array();
+                $default_qr_expiry = isset($settings2['qr_expiry_seconds']) ? max(15, intval($settings2['qr_expiry_seconds'])) : 60;
+                $ttl = $default_qr_expiry;
+                if ($expires_epoch_val > $now) {
+                    $ttl = max(5, $expires_epoch_val - $now - 2); // leave a 2s safety window
+                }
+                $cache_payload = array(
+                    'order_id' => $resp_payload['order_id'],
+                    'amount' => $resp_payload['amount'],
+                    'currency' => $resp_payload['currency'],
+                    'session_token' => $resp_payload['session_token'],
+                    'emv' => $resp_payload['emv'],
+                    'qr_url' => $resp_payload['qr_url'],
+                    'expires_epoch' => $resp_payload['expires_epoch'],
+                    'ref_code' => $resp_payload['ref_code'],
+                    'cached_at' => $now,
+                );
+                call_user_func('set_transient', $cache_key, $cache_payload, $ttl);
+            }
+
+            $status = ($resp_code >= 200 && $resp_code < 300) ? 200 : 502;
+            return class_exists('WP_REST_Response') ? new WP_REST_Response($resp_payload, $status) : $resp_payload;
+
+        } catch (Exception $e) {
+            $this->logger->error('QR proxy failed', array('error' => $e->getMessage()));
+            $msg = is_callable('__') ? call_user_func('__', 'QR generation failed.', 'scanandpay-n8n') : 'QR generation failed.';
+            return new WP_Error('qr_generation_failed', $msg, array('status' => 500));
+        }
+    }
+
+    /**
+     * Derive the n8n QR generate URL from settings with a filter for overrides.
+     * @param array $settings
+     * @return string
+     */
+    private function derive_qr_generate_url($settings) {
+        // 1) Explicit override takes precedence
+        $override = isset($settings['qr_generate_webhook_url']) ? (string) $settings['qr_generate_webhook_url'] : '';
+        if (!empty($override)) {
+            // Enforce HTTPS only
+            $p = @parse_url($override);
+            if (is_array($p) && isset($p['scheme']) && strtolower((string) $p['scheme']) === 'https') {
+                if (is_callable('apply_filters')) {
+                    $override = call_user_func('apply_filters', 'san8n_qr_generate_url', $override, $override, $settings);
+                }
+                return (string) $override;
+            }
+        }
+
+        // 2) Derive from n8n_webhook_url
+        $base = isset($settings['n8n_webhook_url']) ? (string) $settings['n8n_webhook_url'] : '';
+        $derived = '';
+        if (!empty($base)) {
+            $trim = rtrim($base, '/');
+            // Common case: replace last segment with qr-generate
+            $replaced = preg_replace('~(/)([^/]+)$~', '$1qr-generate', $trim);
+            if (is_string($replaced) && $replaced !== $trim) {
+                $derived = $replaced;
+            } else {
+                // If webhook segment exists, append qr-generate next to it
+                if (strpos($trim, '/webhook/') !== false) {
+                    $derived = rtrim(dirname($trim), '/') . '/qr-generate';
+                } else {
+                    // Fallback to domain + /webhook/qr-generate
+                    $parts = parse_url($trim);
+                    if (is_array($parts) && isset($parts['scheme'], $parts['host'])) {
+                        $derived = $parts['scheme'] . '://' . $parts['host'] . (isset($parts['port']) ? ':' . $parts['port'] : '') . '/webhook/qr-generate';
+                    }
+                }
+            }
+        }
+        if (is_callable('apply_filters')) {
+            $derived = call_user_func('apply_filters', 'san8n_qr_generate_url', $derived, $base, $settings);
+        }
+        // Ensure HTTPS only
+        $p2 = @parse_url($derived);
+        if (!is_array($p2) || !isset($p2['scheme']) || strtolower((string) $p2['scheme']) !== 'https') {
+            return '';
+        }
+        return (string) $derived;
+    }
+
     public function register_routes() {
         $creatable = class_exists('WP_REST_Server') ? WP_REST_Server::CREATABLE : 'POST';
         $readable = class_exists('WP_REST_Server') ? WP_REST_Server::READABLE : 'GET';
@@ -50,6 +338,27 @@ class SAN8N_REST_API {
                         'validate_callback' => function($param) {
                             return is_numeric($param);
                         }
+                    )
+                )
+            ));
+
+            // QR Proxy endpoint to generate PromptPay QR via n8n
+            call_user_func('register_rest_route', SAN8N_REST_NAMESPACE, '/qr-proxy', array(
+                'methods' => $creatable,
+                'callback' => array($this, 'qr_proxy'),
+                'permission_callback' => array($this, 'verify_permission'),
+                'args' => array(
+                    'session_token' => array(
+                        'required' => true,
+                        'sanitize_callback' => $sanitize_text
+                    ),
+                    'order_id' => array(
+                        'required' => true,
+                        'validate_callback' => function($param) { return is_numeric($param); }
+                    ),
+                    'order_total' => array(
+                        'required' => true,
+                        'validate_callback' => function($param) { return is_numeric($param); }
                     )
                 )
             ));
@@ -215,7 +524,7 @@ class SAN8N_REST_API {
                     'correlation_id' => $correlation_id
                 );
                 // Persist approval tied to the session token as a fallback when WC session isn't available
-                $ttl = (defined('MINUTE_IN_SECONDS') ? MINUTE_IN_SECONDS : 60) * 10; // 10 minutes
+                $ttl = (defined('MINUTE_IN_SECONDS') ? constant('MINUTE_IN_SECONDS') : 60) * 10; // 10 minutes
                 $transient_key = 'san8n_tok_' . hash('sha256', (string) $session_token);
                 if (is_callable('set_transient')) {
                     call_user_func('set_transient', $transient_key, array(

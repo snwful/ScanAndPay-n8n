@@ -55,11 +55,19 @@ final class SAN8N_Blocks_Integration extends SAN8N_AbstractPaymentMethodType_Run
     public function get_payment_method_script_handles() {
         $script_path = '/assets/js/blocks-integration.js';
         $script_asset_path = SAN8N_PLUGIN_DIR . 'assets/js/blocks-integration.asset.php';
-        $script_asset = file_exists($script_asset_path) 
-            ? require($script_asset_path) 
+        $script_asset = file_exists($script_asset_path)
+            ? require($script_asset_path)
             : array(
-                'dependencies' => array(),
-                'version' => SAN8N_VERSION
+                // Fallback deps to ensure WP/WC Blocks globals exist if asset file is unavailable
+                'dependencies' => array(
+                    'wp-element',
+                    'wp-i18n',
+                    'wp-html-entities',
+                    'wp-data',
+                    'wc-blocks-registry',
+                    'wc-settings',
+                ),
+                'version' => SAN8N_VERSION,
             );
         
         $script_url = SAN8N_PLUGIN_URL . 'assets/js/blocks-integration.js';
@@ -113,7 +121,11 @@ final class SAN8N_Blocks_Integration extends SAN8N_AbstractPaymentMethodType_Run
         }
 
         $qr_custom = $this->get_setting('qr_image_url', '');
-        $qr_url = !empty($qr_custom) ? $qr_custom : (SAN8N_PLUGIN_URL . 'assets/images/qr-placeholder.svg');
+        $qr_source = $this->get_setting('qr_source', 'n8n');
+        // If media_picker and custom provided, use it; otherwise use placeholder to be replaced by dynamic fetch in JS
+        $qr_url = ($qr_source === 'media_picker' && !empty($qr_custom))
+            ? $qr_custom
+            : (SAN8N_PLUGIN_URL . 'assets/images/qr-placeholder.svg');
 
         return array(
             'title' => $title,
@@ -126,7 +138,9 @@ final class SAN8N_Blocks_Integration extends SAN8N_AbstractPaymentMethodType_Run
                 'prevent_double_submit_ms' => intval($this->get_setting('prevent_double_submit_ms', '1500')),
                 'max_file_size' => intval($this->get_setting('max_file_size', '5')) * 1024 * 1024,
                 'verify_timeout_ms' => intval($this->get_setting('verify_timeout_ms', '9000')),
-                'qr_placeholder' => $qr_url
+                'qr_placeholder' => $qr_url,
+                'qr_source' => $qr_source,
+                'qr_static_url' => $qr_custom
             ),
             'rest_url' => is_callable('rest_url') ? call_user_func('rest_url', SAN8N_REST_NAMESPACE) : '',
             'nonce' => is_callable('wp_create_nonce') ? call_user_func('wp_create_nonce', 'wp_rest') : '',
@@ -147,6 +161,8 @@ final class SAN8N_Blocks_Integration extends SAN8N_AbstractPaymentMethodType_Run
                 'upload_required' => $this->tr('Please upload a payment slip.'),
                 'verify_required' => $this->tr('Please verify your payment before placing the order.'),
                 'amount_label' => $this->tr('Amount: %s THB'),
+                'ref_code_label' => $this->tr('Reference: %s'),
+                'qr_expires_in' => $this->tr('QR expires in %s'),
                 'accepted_formats' => $this->tr('Accepted formats: JPG, PNG (max %dMB)'),
                 'remove' => $this->tr('Remove')
             )

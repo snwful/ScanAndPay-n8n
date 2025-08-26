@@ -39,8 +39,11 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
     private $max_file_size;
     private $allowed_file_types;
     private $retention_days;
-    private $log_level;
+    public $log_level;
     private $qr_image_url;
+    private $qr_source;
+    private $verification_mode;
+    private $qr_expiry_seconds;
 
     public function __construct() {
         $this->id = SAN8N_GATEWAY_ID;
@@ -75,6 +78,9 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
         $this->retention_days = intval($this->get_option('retention_days', '30'));
         $this->log_level = $this->get_option('log_level', 'info');
         $this->qr_image_url = $this->get_option('qr_image_url', '');
+        $this->qr_source = $this->get_option('qr_source', 'n8n');
+        $this->verification_mode = $this->get_option('verification_mode', 'slip_required');
+        $this->qr_expiry_seconds = intval($this->get_option('qr_expiry_seconds', '60'));
 
         // Initialize logger
         $this->logger = new SAN8N_Logger();
@@ -84,6 +90,8 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
             call_user_func('add_action', 'woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
             call_user_func('add_action', 'wp_enqueue_scripts', array($this, 'payment_scripts'));
             call_user_func('add_action', 'woocommerce_admin_order_data_after_billing_address', array($this, 'display_admin_order_meta'), 10, 1);
+            // Persist ref_code to order meta upon order creation
+            call_user_func('add_action', 'woocommerce_checkout_create_order', array($this, 'capture_ref_code_on_order'), 10, 2);
         }
     }
 
@@ -142,6 +150,13 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                 'placeholder' => 'https://your-n8n-instance.com/webhook/verify-slip',
                 'custom_attributes' => array('required' => 'required')
             ),
+            'qr_generate_webhook_url' => array(
+                'title' => $this->tr('QR Generate URL'),
+                'type' => 'text',
+                'description' => $this->tr('HTTPS endpoint to generate a PromptPay QR. If set, the plugin will use this URL directly (no auto-derivation). Leave empty to derive from n8n Webhook URL. Endpoint must return qr_url (and optional expires_epoch). Uses the Shared Secret for HMAC.'),
+                'desc_tip' => true,
+                'placeholder' => 'https://your-backend.example.com/webhook/qr-generate'
+            ),
             'shared_secret' => array(
                 'title' => $this->tr('Shared Secret'),
                 'type' => 'password',
@@ -168,6 +183,17 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                 'description' => $this->tr('Select a static image (via Media Library) to display instead of a PromptPay QR code. Leave empty to use the default placeholder.'),
                 'default' => '',
                 'desc_tip' => true,
+            ),
+            'qr_source' => array(
+                'title' => $this->tr('QR Source Mode'),
+                'type' => 'select',
+                'description' => $this->tr('Choose which QR to show at checkout. Default uses dynamic QR from n8n. Select Media Picker to show a static image from your Media Library.'),
+                'default' => 'n8n',
+                'desc_tip' => true,
+                'options' => array(
+                    'n8n' => $this->tr('Dynamic (n8n)'),
+                    'media_picker' => $this->tr('Static (Media Picker)')
+                )
             ),
             'classic_settings' => array(
                 'title' => $this->tr('Classic Checkout Settings'),
@@ -197,6 +223,25 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                 'default' => '9000',
                 'desc_tip' => true,
                 'custom_attributes' => array('min' => '3000', 'max' => '30000', 'step' => '500')
+            ),
+            'verification_mode' => array(
+                'title' => $this->tr('Verification Mode'),
+                'type' => 'select',
+                'description' => $this->tr('Choose whether slip upload is required at checkout, or use slipless mode and verify later via Tasker/IMAP.'),
+                'default' => 'slip_required',
+                'desc_tip' => true,
+                'options' => array(
+                    'slip_required' => $this->tr('Require Slip Upload (classic)'),
+                    'slipless' => $this->tr('Slipless (auto-verify later)')
+                )
+            ),
+            'qr_expiry_seconds' => array(
+                'title' => $this->tr('QR Expiry (seconds)'),
+                'type' => 'number',
+                'description' => $this->tr('Default QR expiry duration when backend does not provide an expires_epoch.'),
+                'default' => '60',
+                'desc_tip' => true,
+                'custom_attributes' => array('min' => '15', 'max' => '300', 'step' => '5')
             ),
             'blocks_settings' => array(
                 'title' => $this->tr('Blocks Checkout Settings'),
@@ -326,7 +371,10 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                     <div class="san8n-qr-placeholder">
                         <?php
                         $custom_img = (string) $this->qr_image_url;
-                        $img_src = !empty($custom_img) ? $custom_img : (SAN8N_PLUGIN_URL . 'assets/images/qr-placeholder.svg');
+                        // If source is media_picker and a custom image is provided, use it; otherwise show placeholder for dynamic QR
+                        $img_src = ($this->qr_source === 'media_picker' && !empty($custom_img))
+                            ? $custom_img
+                            : (SAN8N_PLUGIN_URL . 'assets/images/qr-placeholder.svg');
                         $img_src_attr = is_callable('esc_url') ? call_user_func('esc_url', $img_src) : $img_src;
                         $alt_src = is_callable('__') ? call_user_func('__', 'QR code image', 'scanandpay-n8n') : 'QR code image';
                         $alt_attr = is_callable('esc_attr') ? call_user_func('esc_attr', $alt_src) : htmlspecialchars($alt_src, ENT_QUOTES, 'UTF-8');
@@ -343,9 +391,14 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                         );
                         ?>
                     </div>
+                    <div class="san8n-ref-code" style="display:none;"></div>
+                    <div class="san8n-qr-expiry" aria-live="polite" aria-atomic="true" role="status">
+                        <span class="san8n-qr-countdown" style="display:none;"></span>
+                    </div>
                 </div>
             </div>
 
+            <?php if ($this->verification_mode !== 'slipless'): ?>
             <div class="san8n-upload-section form-row form-row-wide">
                 <h4><?php echo (is_callable('esc_html') ? call_user_func('esc_html', (is_callable('__') ? call_user_func('__', 'Step 2: Upload Payment Slip', 'scanandpay-n8n') : 'Step 2: Upload Payment Slip')) : 'Step 2: Upload Payment Slip'); ?></h4>
                 <div class="san8n-upload-container">
@@ -373,7 +426,9 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
 
+            <?php if ($this->verification_mode !== 'slipless'): ?>
             <div class="san8n-verify-section form-row form-row-wide">
                 <button type="button"
                         id="san8n-verify-button"
@@ -391,6 +446,17 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                     </div>
                 </div>
             </div>
+            <?php else: ?>
+            <div class="san8n-status-container" 
+                 aria-live="polite" 
+                 aria-atomic="true"
+                 role="status">
+                <div class="san8n-status-message" style="display:none;"></div>
+                <div class="san8n-spinner" style="display:none;">
+                    <span class="spinner is-active"></span>
+                </div>
+            </div>
+            <?php endif; ?>
 
             <input type="hidden" id="san8n-session-token" name="san8n_session_token" value="<?php echo (is_callable('esc_attr') ? call_user_func('esc_attr', $session_token) : htmlspecialchars((string) $session_token, ENT_QUOTES, 'UTF-8')); ?>" />
             <input type="hidden" id="san8n-approval-status" name="san8n_approval_status" value="" />
@@ -447,9 +513,14 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                 'rest_url' => (is_callable('rest_url') ? call_user_func('rest_url', SAN8N_REST_NAMESPACE) : ''),
                 'nonce' => (is_callable('wp_create_nonce') ? call_user_func('wp_create_nonce', 'wp_rest') : ''),
                 'gateway_id' => $this->id,
+                'qr_source' => $this->qr_source,
+                'qr_static_url' => $this->qr_image_url,
                 'auto_submit' => $this->auto_place_order_classic,
                 'prevent_double_submit_ms' => $this->prevent_double_submit_ms,
                 'verify_timeout_ms' => $this->verify_timeout_ms,
+                'verification_mode' => $this->verification_mode,
+                'qr_expiry_seconds' => $this->qr_expiry_seconds,
+                'debug' => ($this->log_level === 'debug'),
                 'i18n' => array(
                     'verifying' => (is_callable('__') ? call_user_func('__', 'Verifying payment...', 'scanandpay-n8n') : 'Verifying payment...'),
                     'approved' => (is_callable('__') ? call_user_func('__', 'Payment approved! Processing order...', 'scanandpay-n8n') : 'Payment approved! Processing order...'),
@@ -462,7 +533,14 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
                     'upload_required' => (is_callable('__') ? call_user_func('__', 'Please upload a payment slip.', 'scanandpay-n8n') : 'Please upload a payment slip.'),
                     'verify_required' => (is_callable('__') ? call_user_func('__', 'Please verify your payment before placing the order.', 'scanandpay-n8n') : 'Please verify your payment before placing the order.'),
                     'processing_order' => (is_callable('__') ? call_user_func('__', 'Processing order...', 'scanandpay-n8n') : 'Processing order...'),
-                    'verify_payment' => (is_callable('__') ? call_user_func('__', 'Verify Payment', 'scanandpay-n8n') : 'Verify Payment')
+                    'verify_payment' => (is_callable('__') ? call_user_func('__', 'Verify Payment', 'scanandpay-n8n') : 'Verify Payment'),
+                    'amount_label' => (is_callable('__') ? call_user_func('__', 'Amount: %s THB', 'scanandpay-n8n') : 'Amount: %s THB'),
+                    'qr_expires_in' => (is_callable('__') ? call_user_func('__', 'QR expires in %s', 'scanandpay-n8n') : 'QR expires in %s'),
+                    'qr_refreshing' => (is_callable('__') ? call_user_func('__', 'Refreshing QR...', 'scanandpay-n8n') : 'Refreshing QR...'),
+                    'qr_expired_refreshing' => (is_callable('__') ? call_user_func('__', 'QR expired, refreshing...', 'scanandpay-n8n') : 'QR expired, refreshing...')
+                ),
+                'i18n_ref' => array(
+                    'ref_code_label' => (is_callable('__') ? call_user_func('__', 'Reference: %s', 'scanandpay-n8n') : 'Reference: %s')
                 )
             ));
         }
@@ -476,7 +554,7 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
         $raw_status = isset($_POST['san8n_approval_status']) ? $_POST['san8n_approval_status'] : '';
         $approval_status = is_callable('sanitize_text_field') ? call_user_func('sanitize_text_field', $raw_status) : (string) $raw_status;
         
-        if ($approval_status !== 'approved') {
+        if ($this->verification_mode !== 'slipless' && $approval_status !== 'approved') {
             if (is_callable('wc_add_notice')) {
                 call_user_func('wc_add_notice', (is_callable('__') ? call_user_func('__', 'Payment verification is required before placing the order.', 'scanandpay-n8n') : 'Payment verification is required before placing the order.'), 'error');
             }
@@ -518,6 +596,22 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
             return array(
                 'result' => 'fail',
                 'messages' => $this->tr('Order not found.')
+            );
+        }
+
+        // For slipless mode, allow order placement without prior approval.
+        if ($this->verification_mode === 'slipless') {
+            // Add order note and set status to on-hold awaiting asynchronous verification
+            if (method_exists($order, 'add_order_note')) {
+                $order->add_order_note($this->tr('Slipless mode: awaiting asynchronous verification.'));
+            }
+            if (method_exists($order, 'update_status')) {
+                $order->update_status('on-hold', $this->tr('Awaiting payment verification.'));
+            }
+            // Return success and redirect
+            return array(
+                'result' => 'success',
+                'redirect' => (method_exists($order, 'get_checkout_order_received_url') ? $order->get_checkout_order_received_url() : '')
             );
         }
 
@@ -644,5 +738,29 @@ class SAN8N_Gateway extends WC_Payment_Gateway {
 
     public function display_admin_order_meta($order) {
         // This will be handled by the admin class
+    }
+
+    /**
+     * Persist ref_code from WC session into order meta when order is created.
+     * Hooked via woocommerce_checkout_create_order.
+     *
+     * @param WC_Order $order
+     * @param array    $data
+     * @return void
+     */
+    public function capture_ref_code_on_order($order, $data) {
+        $wc = is_callable('WC') ? call_user_func('WC') : null;
+        if (!$order || !$wc || !isset($wc->session) || !method_exists($wc->session, 'get')) {
+            return;
+        }
+        $ref_code = $wc->session->get('san8n_ref_code');
+        if (!empty($ref_code) && method_exists($order, 'update_meta_data')) {
+            $order->update_meta_data('_san8n_ref_code', (string) $ref_code);
+        }
+        // Clear from session after capturing
+        if (method_exists($wc->session, 'set')) {
+            $wc->session->set('san8n_ref_code', null);
+            $wc->session->set('san8n_ref_code_time', null);
+        }
     }
 }

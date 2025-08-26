@@ -3,7 +3,7 @@
  * Plugin Name: Scan & Pay (n8n)
  * Plugin URI: https://github.com/your-org/scanandpay-n8n
  * Description: PromptPay payment gateway with inline slip verification via n8n
- * Version: 1.1.1
+ * Version: 1.1.2
  * Author: Your Company
  * Author URI: https://yourcompany.com
  * Text Domain: scanandpay-n8n
@@ -24,7 +24,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('SAN8N_VERSION', '1.1.1');
+define('SAN8N_VERSION', '1.1.2');
 define('SAN8N_PLUGIN_FILE', __FILE__);
 define('SAN8N_PLUGIN_DIR', is_callable('plugin_dir_path') ? call_user_func('plugin_dir_path', __FILE__) : (dirname(__FILE__) . '/'));
 define('SAN8N_PLUGIN_URL', is_callable('plugin_dir_url') ? call_user_func('plugin_dir_url', __FILE__) : '');

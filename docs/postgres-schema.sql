@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS payment_sessions (
   amount_variant      numeric(12,2),
   currency            text NOT NULL DEFAULT 'THB',
   emv                 text,                  -- EMV payload issued for this session
+  ref_code            text,                  -- optional reference code for display/tracking
   expires_at          timestamptz NOT NULL,  -- absolute expiry time
   created_at          timestamptz NOT NULL DEFAULT now(),
   status              text NOT NULL DEFAULT 'pending', -- pending | approved | expired
@@ -67,11 +68,18 @@ BEGIN
   ) THEN
     ALTER TABLE payment_sessions ADD COLUMN matched_message_id text;
   END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name='payment_sessions' AND column_name='ref_code'
+  ) THEN
+    ALTER TABLE payment_sessions ADD COLUMN ref_code text;
+  END IF;
 END$$;
 
 CREATE INDEX IF NOT EXISTS idx_payment_sessions_order_created ON payment_sessions (order_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_payment_sessions_created ON payment_sessions (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_payment_sessions_status ON payment_sessions (status);
+CREATE INDEX IF NOT EXISTS idx_payment_sessions_ref_code ON payment_sessions (ref_code);
 
 -- Optional FK if you expect matching always to a known payment (not enforced to allow decoupled ingestion)
 -- ALTER TABLE payment_sessions
@@ -82,7 +90,7 @@ CREATE INDEX IF NOT EXISTS idx_payment_sessions_status ON payment_sessions (stat
 CREATE OR REPLACE VIEW v_latest_session_per_order AS
 SELECT DISTINCT ON (order_id)
   order_id, session_token, status, amount, amount_variant, currency, emv,
-  expires_at, created_at, matched_message_id, approved_amount
+  expires_at, created_at, matched_message_id, approved_amount, ref_code
 FROM payment_sessions
 WHERE order_id IS NOT NULL
 ORDER BY order_id, created_at DESC;
@@ -140,6 +148,7 @@ CREATE TABLE IF NOT EXISTS payment_sessions (
   amount_variant      numeric(12,2),           -- unique cents adjusted amount
   currency            text NOT NULL DEFAULT 'THB',
   emv                 text,                    -- EMV payload issued for this session
+  ref_code            text,                    -- optional reference code for display/tracking
   expires_at          timestamptz NOT NULL,    -- absolute expiry time
   created_at          timestamptz NOT NULL DEFAULT now(),
   status              text NOT NULL DEFAULT 'pending', -- pending | approved | expired
@@ -182,6 +191,8 @@ CREATE INDEX IF NOT EXISTS idx_payment_sessions_expires
 -- For exact-amount + recency match
 CREATE INDEX IF NOT EXISTS idx_payment_sessions_amount_variant_created
   ON payment_sessions (amount_variant, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_payment_sessions_ref_code
+  ON payment_sessions (ref_code);
 
 -- Optional FK (disabled by default; enable if you want coupling)
 -- DO $$
@@ -200,7 +211,7 @@ CREATE INDEX IF NOT EXISTS idx_payment_sessions_amount_variant_created
 CREATE OR REPLACE VIEW v_latest_session_per_order AS
 SELECT DISTINCT ON (order_id)
   order_id, session_token, status, amount, amount_variant, currency, emv,
-  expires_at, created_at, matched_message_id, approved_amount
+  expires_at, created_at, matched_message_id, approved_amount, ref_code
 FROM payment_sessions
 WHERE order_id IS NOT NULL
 ORDER BY order_id, created_at DESC;
@@ -367,5 +378,8 @@ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='payment_sessions' AND column_name='source_ip') THEN
     ALTER TABLE payment_sessions ADD COLUMN source_ip inet;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='payment_sessions' AND column_name='ref_code') THEN
+    ALTER TABLE payment_sessions ADD COLUMN ref_code text;
   END IF;
 END$$;

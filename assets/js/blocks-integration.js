@@ -5,14 +5,16 @@
 const { registerPaymentMethod } = window.wc.wcBlocksRegistry;
 const { getSetting } = window.wc.wcSettings;
 const { __ } = window.wp.i18n;
-const { useState, useEffect, useCallback } = window.wp.element;
+const { useState, useEffect, useCallback, useRef } = window.wp.element;
 const { decodeEntities } = window.wp.htmlEntities;
+const useSelect = (window.wp && window.wp.data && window.wp.data.useSelect) ? window.wp.data.useSelect : null;
 
 const settings = getSetting('scanandpay_n8n_data', {});
 const label = decodeEntities(settings.title) || __('Scan & Pay (n8n)', 'scanandpay-n8n');
 const description = decodeEntities(settings.description || '');
+const qrSource = (settings && settings.settings && settings.settings.qr_source) ? settings.settings.qr_source : 'n8n';
 
-// Live PromptPay QR is no longer used. Always render a static image from settings.
+// Dynamically fetch PromptPay QR via plugin REST proxy
 
 const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
     const { onPaymentSetup, onCheckoutValidation } = eventRegistration;
@@ -24,6 +26,14 @@ const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
     const [referenceId, setReferenceId] = useState('');
     const [approvedAmount, setApprovedAmount] = useState(0);
     const [showExpressButton, setShowExpressButton] = useState(false);
+    const [qrUrl, setQrUrl] = useState(settings.settings.qr_placeholder);
+    const [qrAmount, setQrAmount] = useState(0);
+    const [refCode, setRefCode] = useState('');
+    const [expiresEpoch, setExpiresEpoch] = useState(null);
+    const [countdown, setCountdown] = useState('');
+    const inflightRef = useRef(false);
+    const lastKeyRef = useRef(null);
+    const abortRef = useRef(null);
     const [sessionToken] = useState(() => {
         try {
             if (window.crypto && window.crypto.randomUUID) {
@@ -33,12 +43,110 @@ const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
         return (Date.now().toString(36) + Math.random().toString(36).slice(2));
     });
 
-    // Get cart total
-    const cartTotal = window.wc.wcBlocksData.getSetting('cartTotals', {}).total_price / 100;
+    // Get cart total (reactive via data store; fallback to static setting)
+    const totals = useSelect ? useSelect((select) => select('wc/store').getCartTotals(), []) : null;
+    const cartTotal = (totals && typeof totals.total_price === 'number')
+        ? totals.total_price / 100
+        : (((window.wc && window.wc.wcBlocksData && window.wc.wcBlocksData.getSetting('cartTotals', {}).total_price) || 0) / 100);
 
     useEffect(() => {
-        // No-op: live QR removed
-    }, [cartTotal]);
+        // Fetch QR whenever total or session changes, with dedupe and cache reuse
+        const now = () => Math.floor(Date.now() / 1000);
+        const key = `${sessionToken}|${(Number(cartTotal) || 0).toFixed(2)}`;
+
+        // If static mode, do not fetch; keep provided image and just update amount
+        if (qrSource === 'media_picker') {
+            setQrAmount(cartTotal);
+            return;
+        }
+
+        // If we already have a valid, not-near-expiry QR for this key, skip network
+        if (lastKeyRef.current === key && expiresEpoch && (expiresEpoch - now()) > 2) {
+            setQrAmount(qrAmount || cartTotal);
+            return;
+        }
+
+        // Dedupe in-flight calls for same key
+        if (inflightRef.current && lastKeyRef.current === key) {
+            return;
+        }
+
+        // Abort any older request when key changes
+        try { if (abortRef.current) { abortRef.current.abort(); } } catch (e) {}
+
+        const controller = new AbortController();
+        abortRef.current = controller;
+        inflightRef.current = true;
+        lastKeyRef.current = key;
+
+        const doFetch = async () => {
+            try {
+                const resp = await fetch(settings.rest_url + '/qr-proxy', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-WP-Nonce': settings.nonce,
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        session_token: sessionToken,
+                        order_id: 0,
+                        order_total: cartTotal,
+                    }),
+                    signal: controller.signal,
+                });
+                if (!resp.ok) return;
+                const data = await resp.json();
+                if (data && data.qr_url) {
+                    setQrUrl(data.qr_url);
+                }
+                if (data && typeof data.amount !== 'undefined') {
+                    setQrAmount(Number(data.amount) || cartTotal);
+                } else {
+                    setQrAmount(cartTotal);
+                }
+                if (data && typeof data.ref_code !== 'undefined') {
+                    setRefCode(String(data.ref_code || ''));
+                }
+                if (data && typeof data.expires_epoch !== 'undefined' && data.expires_epoch) {
+                    setExpiresEpoch(parseInt(data.expires_epoch, 10));
+                } else {
+                    setExpiresEpoch(null);
+                }
+            } catch (e) {
+                // leave placeholder on failure
+                setQrAmount(cartTotal);
+            } finally {
+                inflightRef.current = false;
+            }
+        };
+        doFetch();
+        return () => controller.abort();
+    }, [cartTotal, sessionToken]);
+
+    // Countdown updater for expiry
+    useEffect(() => {
+        if (!expiresEpoch) {
+            setCountdown('');
+            return;
+        }
+        const format = (secs) => {
+            const s = Math.max(0, Math.floor(secs));
+            const m = Math.floor(s / 60);
+            const r = s % 60;
+            return `${m}:${r.toString().padStart(2, '0')}`;
+        };
+        const id = setInterval(() => {
+            const remain = parseInt(expiresEpoch, 10) - Math.floor(Date.now() / 1000);
+            if (remain <= 0) {
+                setCountdown('0:00');
+                clearInterval(id);
+            } else {
+                setCountdown(format(remain));
+            }
+        }, 1000);
+        return () => clearInterval(id);
+    }, [expiresEpoch]);
 
     useEffect(() => {
         // Handle payment setup
@@ -215,13 +323,23 @@ const SAN8N_BlocksContent = ({ eventRegistration, emitResponse }) => {
                 <h4>{settings.i18n.scan_qr}</h4>
                 <div className="san8n-qr-container">
                     <img
-                        src={settings.settings.qr_placeholder}
+                        src={qrUrl}
                         alt="QR Code"
                         className="san8n-qr-placeholder"
                     />
                     <div className="san8n-amount-display">
-                        {settings.i18n.amount_label.replace('%s', cartTotal.toFixed(2))}
+                        {settings.i18n.amount_label.replace('%s', (qrAmount || cartTotal).toFixed(2))}
                     </div>
+                    {refCode ? (
+                        <div className="san8n-ref-code">
+                            {settings.i18n.ref_code_label ? settings.i18n.ref_code_label.replace('%s', String(refCode)) : `Reference: ${String(refCode)}`}
+                        </div>
+                    ) : null}
+                    {countdown ? (
+                        <div className="san8n-qr-expiry">
+                            {settings.i18n.qr_expires_in ? settings.i18n.qr_expires_in.replace('%s', countdown) : `QR expires in ${countdown}`}
+                        </div>
+                    ) : null}
                 </div>
             </div>
 
