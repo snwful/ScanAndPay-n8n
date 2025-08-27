@@ -1,5 +1,5 @@
 -- Scan & Pay (n8n) minimal Postgres schema
--- Tables: payments, payment_sessions
+-- Tables: payments, payment_sessions, approvals
 -- Ensure timezone is set appropriately; using timestamptz for safety.
 
 -- Payments ingested from Tasker/IMAP/others
@@ -17,6 +17,19 @@ CREATE TABLE IF NOT EXISTS payments (
 CREATE INDEX IF NOT EXISTS idx_payments_created_at ON payments (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_payments_used_created ON payments (used, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_payments_amount_created ON payments (amount, created_at DESC);
+
+-- Approvals dedupe table for idempotent webhook/callback processing
+CREATE TABLE IF NOT EXISTS approvals (
+  session_token    text PRIMARY KEY,
+  approved_amount  numeric(12,2) NOT NULL,
+  matched_at       timestamptz    NOT NULL,
+  ref_code         text,
+  message_id       text,
+  created_at       timestamptz    NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS approvals_message_id_uq ON approvals (message_id) WHERE message_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS approvals_created_at_idx ON approvals (created_at);
 
 -- Payment sessions generated for Woo orders (QR generate)
 CREATE TABLE IF NOT EXISTS payment_sessions (

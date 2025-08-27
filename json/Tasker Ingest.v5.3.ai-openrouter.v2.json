@@ -6,22 +6,37 @@
         "httpMethod": "POST",
         "path": "tasker/ingest",
         "responseMode": "responseNode",
-        "options": { "rawBody": true }
+        "options": {
+          "rawBody": true
+        }
       },
       "name": "WH Tasker",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ]
     },
     {
       "parameters": {
         "keepOnlySet": false,
-        "values": { "string": [ { "name": "secret", "value": "REPLACE_TASKER_SECRET" } ] }
+        "values": {
+          "string": [
+            {
+              "name": "secret",
+              "value": "REPLACE_TASKER_SECRET"
+            }
+          ]
+        }
       },
       "name": "Set Secret",
       "type": "n8n-nodes-base.set",
       "typeVersion": 2,
-      "position": [500, 300],
+      "position": [
+        500,
+        300
+      ],
       "notesInFlow": true,
       "notes": "Put your Tasker→n8n HMAC secret here."
     },
@@ -30,17 +45,32 @@
         "keepOnlySet": false,
         "values": {
           "string": [
-            { "name": "or_api_key", "value": "REPLACE_OPENROUTER_API_KEY" },
-            { "name": "or_model",   "value": "gpt-oss-20b" },
-            { "name": "or_title",   "value": "Scan&Pay AI Mapper" },
-            { "name": "or_referer", "value": "https://n8n.example.com/" }
+            {
+              "name": "or_api_key",
+              "value": "REPLACE_OPENROUTER_API_KEY"
+            },
+            {
+              "name": "or_model",
+              "value": "gpt-oss-20b"
+            },
+            {
+              "name": "or_title",
+              "value": "Scan&Pay AI Mapper"
+            },
+            {
+              "name": "or_referer",
+              "value": "https://n8n.example.com/"
+            }
           ]
         }
       },
       "name": "Set Config",
       "type": "n8n-nodes-base.set",
       "typeVersion": 2,
-      "position": [740, 300],
+      "position": [
+        740,
+        300
+      ],
       "notesInFlow": true,
       "notes": "Configure OpenRouter here. Set your API key and model (gpt-oss-20b)."
     },
@@ -51,21 +81,42 @@
       "name": "Verify HMAC",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [980, 300]
+      "position": [
+        980,
+        300
+      ]
     },
     {
-      "parameters": { "conditions": { "boolean": [ { "value1": "={{$json.auth_ok}}", "operation": "isTrue" } ] } },
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.auth_ok}}",
+              "operation": "isTrue"
+            }
+          ]
+        }
+      },
       "name": "IF Auth OK?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1230, 300]
+      "position": [
+        1230,
+        300
+      ]
     },
     {
-      "parameters": { "responseCode": 401, "responseBody": "{\"ok\":false,\"error\":\"unauthorized\"}" },
+      "parameters": {
+        "responseCode": 401,
+        "responseBody": "{\"ok\":false,\"error\":\"unauthorized\"}"
+      },
       "name": "Respond 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1470, 440]
+      "position": [
+        1470,
+        440
+      ]
     },
     {
       "parameters": {
@@ -74,37 +125,93 @@
       "name": "Validate Schema",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1470, 180]
+      "position": [
+        1470,
+        180
+      ]
     },
     {
-      "parameters": { "conditions": { "boolean": [ { "value1": "={{$json.valid}}", "operation": "isTrue" } ] } },
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.valid}}",
+              "operation": "isTrue"
+            }
+          ]
+        }
+      },
       "name": "IF Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1710, 180]
+      "position": [
+        1710,
+        180
+      ]
     },
     {
       "parameters": {
         "keepOnlySet": true,
         "values": {
           "string": [
-            { "name": "message_id", "value": "={{$json.mapped.message_id}}" },
-            { "name": "currency",   "value": "={{$json.mapped.currency}}" },
-            { "name": "bank",       "value": "={{$json.mapped.bank}}" },
-            { "name": "ref",        "value": "={{$json.mapped.ref}}" },
-            { "name": "created_at", "value": "={{$json.mapped.created_at}}" }
+            {
+              "name": "message_id",
+              "value": "={{$json.mapped.message_id}}"
+            },
+            {
+              "name": "currency",
+              "value": "={{$json.mapped.currency}}"
+            },
+            {
+              "name": "bank",
+              "value": "={{$json.mapped.bank}}"
+            },
+            {
+              "name": "ref",
+              "value": "={{$json.mapped.ref}}"
+            },
+            {
+              "name": "created_at",
+              "value": "={{$json.mapped.created_at}}"
+            },
+            {
+              "name": "ref_code",
+              "value": "={{$json.mapped.ref}}"
+            },
+            {
+              "name": "correlation_id",
+              "value": "={{(()=>{const rnd=Math.random().toString(36).slice(2,8);const ts=Math.floor(Date.now()/1000);return 'ing-'+ts+'-'+rnd;})()}}"
+            }
           ],
           "number": [
-            { "name": "amount",   "value": "={{ (()=>{ const n=Number($json.mapped.amount); return Number.isFinite(n)?n:0; })() }}" },
-            { "name": "txn_time", "value": "={{ (()=>{ const n=Number($json.mapped.txn_time); return Number.isFinite(n)?n:Math.floor(Date.now()/1000); })() }}" }
+            {
+              "name": "amount",
+              "value": "={{ (()=>{ const n=Number($json.mapped.amount); return Number.isFinite(n)?n:0; })() }}"
+            },
+            {
+              "name": "txn_time",
+              "value": "={{ (()=>{ const n=Number($json.mapped.txn_time); return Number.isFinite(n)?n:Math.floor(Date.now()/1000); })() }}"
+            },
+            {
+              "name": "posted_at",
+              "value": "={{ (()=>{ const n=Number($json.mapped.txn_time); return Number.isFinite(n)?n:Math.floor(Date.now()/1000); })() }}"
+            }
           ],
-          "boolean": [ { "name": "used", "value": false } ]
+          "boolean": [
+            {
+              "name": "used",
+              "value": false
+            }
+          ]
         }
       },
       "name": "Normalize",
       "type": "n8n-nodes-base.set",
       "typeVersion": 2,
-      "position": [1950, 80]
+      "position": [
+        1950,
+        80
+      ]
     },
     {
       "parameters": {
@@ -113,7 +220,10 @@
       "name": "Build AI Prompt",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1950, 280]
+      "position": [
+        1950,
+        280
+      ]
     },
     {
       "parameters": {
@@ -135,7 +245,10 @@
       "name": "AI OpenRouter",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [2190, 280]
+      "position": [
+        2190,
+        280
+      ]
     },
     {
       "parameters": {
@@ -144,30 +257,74 @@
       "name": "AI Parse",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2430, 280]
+      "position": [
+        2430,
+        280
+      ]
     },
     {
       "parameters": {
         "keepOnlySet": true,
         "values": {
           "string": [
-            { "name": "message_id", "value": "={{$json.mapped.message_id}}" },
-            { "name": "currency",   "value": "={{$json.mapped.currency}}" },
-            { "name": "bank",       "value": "={{$json.mapped.bank}}" },
-            { "name": "ref",        "value": "={{$json.mapped.ref}}" },
-            { "name": "created_at", "value": "={{$json.mapped.created_at}}" }
+            {
+              "name": "message_id",
+              "value": "={{$json.mapped.message_id}}"
+            },
+            {
+              "name": "currency",
+              "value": "={{$json.mapped.currency}}"
+            },
+            {
+              "name": "bank",
+              "value": "={{$json.mapped.bank}}"
+            },
+            {
+              "name": "ref",
+              "value": "={{$json.mapped.ref}}"
+            },
+            {
+              "name": "created_at",
+              "value": "={{$json.mapped.created_at}}"
+            },
+            {
+              "name": "ref_code",
+              "value": "={{$json.mapped.ref}}"
+            },
+            {
+              "name": "correlation_id",
+              "value": "={{(()=>{const rnd=Math.random().toString(36).slice(2,8);const ts=Math.floor(Date.now()/1000);return 'ing-'+ts+'-'+rnd;})()}}"
+            }
           ],
           "number": [
-            { "name": "amount",   "value": "={{ (()=>{ const n=Number($json.mapped.amount); return Number.isFinite(n)?n:0; })() }}" },
-            { "name": "txn_time", "value": "={{ (()=>{ const n=Number($json.mapped.txn_time); return Number.isFinite(n)?n:Math.floor(Date.now()/1000); })() }}" }
+            {
+              "name": "amount",
+              "value": "={{ (()=>{ const n=Number($json.mapped.amount); return Number.isFinite(n)?n:0; })() }}"
+            },
+            {
+              "name": "txn_time",
+              "value": "={{ (()=>{ const n=Number($json.mapped.txn_time); return Number.isFinite(n)?n:Math.floor(Date.now()/1000); })() }}"
+            },
+            {
+              "name": "posted_at",
+              "value": "={{ (()=>{ const n=Number($json.mapped.txn_time); return Number.isFinite(n)?n:Math.floor(Date.now()/1000); })() }}"
+            }
           ],
-          "boolean": [ { "name": "used", "value": false } ]
+          "boolean": [
+            {
+              "name": "used",
+              "value": false
+            }
+          ]
         }
       },
       "name": "Normalize (AI)",
       "type": "n8n-nodes-base.set",
       "typeVersion": 2,
-      "position": [2670, 280]
+      "position": [
+        2670,
+        280
+      ]
     },
     {
       "parameters": {
@@ -177,32 +334,452 @@
       "name": "PG Upsert Payment",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [2910, 180],
+      "position": [
+        2910,
+        180
+      ],
       "notesInFlow": true,
       "notes": "Set Postgres credentials in this node. Creates/updates row by message_id."
     },
     {
-      "parameters": { "responseCode": 200, "responseBody": "={{ JSON.stringify({ ok: true, id: $json.message_id }) }}" },
-      "name": "Respond 200",
+      "parameters": {
+        "responseCode": 200,
+        "responseBody": "{\"ok\": true}"
+      },
+      "name": "Respond 200 Early",
       "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [3150, 180]
+      "typeVersion": 2,
+      "position": [
+        1500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH payload AS ( SELECT {{$json.amount}}::numeric AS amt, to_timestamp({{$json.posted_at}}) AS paid_at ), cte AS ( SELECT s.session_token, s.order_id, s.amount_variant::numeric AS want_amt, s.created_at FROM payment_sessions s, payload WHERE s.status <> 'approved' AND s.amount_variant::numeric = payload.amt AND s.created_at BETWEEN (payload.paid_at - interval '600 seconds') AND (payload.paid_at + interval '600 seconds') ORDER BY s.created_at DESC LIMIT 1 ) SELECT session_token, order_id, want_amt, {{$json.amount}}::numeric AS amount, {{$json.posted_at}} AS posted_at, {{$json.ref_code}} AS ref_code, {{$json.message_id}} AS message_id, {{$json.correlation_id}} AS correlation_id FROM cte;"
+      },
+      "name": "PG Find Session (Exact 10m)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        3210,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.session_token}}"
+            }
+          ]
+        }
+      },
+      "name": "IF Session Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3470,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log({correlation_id:$json.correlation_id, message_id:$json.message_id, action:'session_lookup', outcome:'no_session_match'});\nreturn items;"
+      },
+      "name": "Log No Session",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3470,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO approvals (session_token, approved_amount, matched_at, ref_code, message_id) VALUES ('{{$json.session_token}}', {{$json.amount}}::numeric, to_timestamp({{$json.posted_at}}), {{$json.ref_code || null}}, {{$json.message_id || null}}) ON CONFLICT (session_token) DO NOTHING RETURNING session_token, {{$json.amount}}::numeric AS amount, {{$json.posted_at}} AS posted_at, {{$json.ref_code}} AS ref_code, {{$json.message_id}} AS message_id, {{$json.correlation_id}} AS correlation_id;"
+      },
+      "name": "PG UPSERT Approvals",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        3730,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.session_token}}"
+            }
+          ]
+        }
+      },
+      "name": "IF First Approval?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3990,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log({correlation_id:$json.correlation_id, session_token:$json.session_token, message_id:$json.message_id, action:'approval', outcome:'duplicate'});\nreturn items;"
+      },
+      "name": "Log Duplicate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3990,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE payments SET used = true WHERE message_id = {{$json.message_id || 'NULL'}} RETURNING {{$json.session_token}} AS session_token, {{$json.amount}} AS amount, {{$json.posted_at}} AS posted_at, {{$json.ref_code}} AS ref_code, {{$json.message_id}} AS message_id, {{$json.correlation_id}} AS correlation_id;"
+      },
+      "name": "PG Mark Payment Used",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        4250,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE payment_sessions SET status='approved', matched_message_id={{$json.message_id || null}}, approved_amount={{$json.amount}}::numeric WHERE session_token='{{$json.session_token}}' RETURNING session_token, {{$json.amount}}::numeric AS amount, {{$json.posted_at}} AS posted_at, {{$json.ref_code}} AS ref_code, {{$json.message_id}} AS message_id, {{$json.correlation_id}} AS correlation_id;"
+      },
+      "name": "PG Update Session Approved",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        4510,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=/wp-json/san8n/v1/async-approve",
+        "method": "POST",
+        "jsonParameters": true,
+        "options": {
+          "bodyContentType": "json"
+        },
+        "bodyParametersJson": "={\"session_token\":$json.session_token,\"amount\":$json.amount,\"matched_at\":$json.posted_at,\"ref_code\":$json.ref_code,\"correlation_id\":$json.correlation_id}"
+      },
+      "name": "WP Async Approve",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        4770,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log({correlation_id:$json.correlation_id, session_token:$json.session_token, message_id:$json.message_id, action:'callback', outcome:'sent'});\nreturn items;"
+      },
+      "name": "Log Callback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5030,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log({correlation_id:$json.correlation_id, session_token:$json.session_token, message_id:$json.message_id, action:'approval', outcome:'stored'});\nreturn items;"
+      },
+      "name": "Log Approved",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4510,
+        360
+      ]
     }
   ],
   "connections": {
-    "WH Tasker": { "main": [[ { "node": "Set Secret", "type": "main", "index": 0 } ]] },
-    "Set Secret": { "main": [[ { "node": "Set Config", "type": "main", "index": 0 } ]] },
-    "Set Config": { "main": [[ { "node": "Verify HMAC", "type": "main", "index": 0 } ]] },
-    "Verify HMAC": { "main": [[ { "node": "IF Auth OK?", "type": "main", "index": 0 } ]] },
-    "IF Auth OK?": { "main": [ [ { "node": "Validate Schema", "type": "main", "index": 0 } ], [ { "node": "Respond 401", "type": "main", "index": 0 } ] ] },
-    "Validate Schema": { "main": [[ { "node": "IF Valid?", "type": "main", "index": 0 } ]] },
-    "IF Valid?": { "main": [ [ { "node": "Normalize", "type": "main", "index": 0 } ], [ { "node": "Build AI Prompt", "type": "main", "index": 0 } ] ] },
-    "Build AI Prompt": { "main": [[ { "node": "AI OpenRouter", "type": "main", "index": 0 } ]] },
-    "AI OpenRouter": { "main": [[ { "node": "AI Parse", "type": "main", "index": 0 } ]] },
-    "AI Parse": { "main": [[ { "node": "Normalize (AI)", "type": "main", "index": 0 } ]] },
-    "Normalize (AI)": { "main": [[ { "node": "PG Upsert Payment", "type": "main", "index": 0 } ]] },
-    "Normalize": { "main": [[ { "node": "PG Upsert Payment", "type": "main", "index": 0 } ]] },
-    "PG Upsert Payment": { "main": [[ { "node": "Respond 200", "type": "main", "index": 0 } ]] }
+    "WH Tasker": {
+      "main": [
+        [
+          {
+            "node": "Set Secret",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Secret": {
+      "main": [
+        [
+          {
+            "node": "Set Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Config": {
+      "main": [
+        [
+          {
+            "node": "Verify HMAC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify HMAC": {
+      "main": [
+        [
+          {
+            "node": "IF Auth OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Auth OK?": {
+      "main": [
+        [
+          {
+            "node": "Respond 200 Early",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Schema": {
+      "main": [
+        [
+          {
+            "node": "IF Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Valid?": {
+      "main": [
+        [
+          {
+            "node": "Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build AI Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI OpenRouter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI OpenRouter": {
+      "main": [
+        [
+          {
+            "node": "AI Parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Parse": {
+      "main": [
+        [
+          {
+            "node": "Normalize (AI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize (AI)": {
+      "main": [
+        [
+          {
+            "node": "PG Upsert Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize": {
+      "main": [
+        [
+          {
+            "node": "PG Upsert Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG Upsert Payment": {
+      "main": [
+        [
+          {
+            "node": "PG Find Session (Exact 10m)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond 200 Early": {
+      "main": [
+        [
+          {
+            "node": "Validate Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG Find Session (Exact 10m)": {
+      "main": [
+        [
+          {
+            "node": "IF Session Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Session Found?": {
+      "main": [
+        [
+          {
+            "node": "PG UPSERT Approvals",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log No Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG UPSERT Approvals": {
+      "main": [
+        [
+          {
+            "node": "IF First Approval?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF First Approval?": {
+      "main": [
+        [
+          {
+            "node": "PG Mark Payment Used",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG Mark Payment Used": {
+      "main": [
+        [
+          {
+            "node": "PG Update Session Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG Update Session Approved": {
+      "main": [
+        [
+          {
+            "node": "Log Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WP Async Approve": {
+      "main": [
+        [
+          {
+            "node": "Log Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Approved": {
+      "main": [
+        [
+          {
+            "node": "WP Async Approve",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": true
 }
