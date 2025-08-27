@@ -81,6 +81,23 @@ CREATE INDEX IF NOT EXISTS idx_payment_sessions_created ON payment_sessions (cre
 CREATE INDEX IF NOT EXISTS idx_payment_sessions_status ON payment_sessions (status);
 CREATE INDEX IF NOT EXISTS idx_payment_sessions_ref_code ON payment_sessions (ref_code);
 
+-- Approvals dedupe gate
+CREATE TABLE IF NOT EXISTS approvals (
+  session_token    text PRIMARY KEY,
+  approved_amount  numeric(12,2) NOT NULL,
+  matched_at       timestamptz    NOT NULL,
+  ref_code         text,
+  message_id       text,
+  created_at       timestamptz    NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS approvals_message_id_uq
+  ON approvals (message_id)
+  WHERE message_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS approvals_created_at_idx
+  ON approvals (created_at);
+
 -- Optional FK if you expect matching always to a known payment (not enforced to allow decoupled ingestion)
 -- ALTER TABLE payment_sessions
 --   ADD CONSTRAINT fk_payment_sessions_payment
@@ -193,6 +210,23 @@ CREATE INDEX IF NOT EXISTS idx_payment_sessions_amount_variant_created
   ON payment_sessions (amount_variant, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_payment_sessions_ref_code
   ON payment_sessions (ref_code);
+
+-- Approvals dedupe gate
+CREATE TABLE IF NOT EXISTS approvals (
+  session_token    text PRIMARY KEY,
+  approved_amount  numeric(12,2) NOT NULL,
+  matched_at       timestamptz    NOT NULL,
+  ref_code         text,
+  message_id       text,
+  created_at       timestamptz    NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS approvals_message_id_uq
+  ON approvals (message_id)
+  WHERE message_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS approvals_created_at_idx
+  ON approvals (created_at);
 
 -- Optional FK (disabled by default; enable if you want coupling)
 -- DO $$
