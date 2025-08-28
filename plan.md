@@ -17,6 +17,7 @@ Slipless PromptPay flow (no bank/PSP APIs, no fees):
 - [ ] n8n: persist `payment_sessions` (session_token, amount_variant, TTL, used)
 - [ ] n8n: Tasker Ingest match engine (exact amount to unique cents within TTL; anti‑reuse)
 - [x] n8n: Tasker ingest idempotency + early ACK
+- [x] n8n: Tasker ingest error handling & metrics
 - [ ] WP gateway UI: render QR from EMV response and start polling until paid/expired
 - [ ] Security hardening: HMAC, HTTPS, payload guards, secret rotation, idempotency
 - [ ] Observability: logs, dead‑letter, metrics; tester checklist
