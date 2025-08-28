@@ -1,5 +1,7 @@
 # plan.md — Sprint Plan (2025-08-25)
 
+PR1 – feat/idempotent-approvals (DB-only)
+
 ## Goal
 Slipless PromptPay flow (no bank/PSP APIs, no fees):
 - Live EMV QR per order via n8n with unique cents (0–99 satang) and 10‑min TTL
@@ -8,6 +10,7 @@ Slipless PromptPay flow (no bank/PSP APIs, no fees):
 
 ## Tasks
 - [x] Update docs to slipless architecture and task breakdown
+- [x] Correct approvals backfill to preserve historical last_seen_at
 - [ ] WP REST proxy: `POST /wp-json/san8n/v1/qr/generate` (server‑side HMAC) → forward to n8n
 - [ ] WP REST proxy: `GET /wp-json/san8n/v1/order/status` → poll n8n session store
 - [ ] WP REST callback: `POST /wp-json/san8n/v1/order/paid` from n8n to mark paid/cancelled
