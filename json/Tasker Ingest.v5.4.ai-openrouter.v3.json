@@ -325,7 +325,7 @@
       ],
       "notesInFlow": true,
       "notes": "Set Postgres credentials in this node. Creates/updates row by message_id.",
-      "continueOnFail": true
+      "continueOnFail": false
     },
     {
       "parameters": {
