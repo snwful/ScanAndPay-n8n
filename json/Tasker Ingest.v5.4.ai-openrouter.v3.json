@@ -1,0 +1,834 @@
+{
+  "name": "Tasker Ingest (PromptPay) v5.4 - AI Guardrail (OpenRouter gpt-oss-20b)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tasker/ingest",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "name": "WH Tasker",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            {
+              "name": "secret",
+              "value": "REPLACE_TASKER_SECRET"
+            }
+          ]
+        }
+      },
+      "name": "Set Secret",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "notesInFlow": true,
+      "notes": "Put your Tasker→n8n HMAC secret here."
+    },
+    {
+      "parameters": {
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            {
+              "name": "or_api_key",
+              "value": "REPLACE_OPENROUTER_API_KEY"
+            },
+            {
+              "name": "or_model",
+              "value": "gpt-oss-20b"
+            },
+            {
+              "name": "or_title",
+              "value": "Scan&Pay AI Mapper"
+            },
+            {
+              "name": "or_referer",
+              "value": "https://n8n.example.com/"
+            }
+          ]
+        }
+      },
+      "name": "Set Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        740,
+        300
+      ],
+      "notesInFlow": true,
+      "notes": "Configure OpenRouter here. Set your API key and model (gpt-oss-20b)."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verify HMAC without require('crypto') using pure JS SHA-256 + HMAC\nfunction toBytes(str){ if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(str); var e=[]; for (var i=0;i<str.length;i++){ var c=str.charCodeAt(i); if (c<128){e.push(c);} else if (c<2048){ e.push((c>>6)|192,(c&63)|128);} else if (c<55296||c>=57344){ e.push((c>>12)|224,((c>>6)&63)|128,(c&63)|128);} else { i++; c=65536+(((c&1023)<<10)|(str.charCodeAt(i)&1023)); e.push((c>>18)|240,((c>>12)&63)|128,((c>>6)&63)|128,(c&63)|128);} } return new Uint8Array(e); }\nfunction bytesToHex(b){ var s='',h='0123456789abcdef'; for (var i=0;i<b.length;i++){ s+=h[(b[i]>>>4)&15]+h[b[i]&15]; } return s; }\nfunction sha256(bytes){ var K=[1116352408,1899447441,3049323471,3921009573,961987163,1508970993,2453635748,2870763221,3624381080,310598401,607225278,1426881987,1925078388,2162078206,2614888103,3248222580,3835390401,4022224774,264347078,604807628,770255983,1249150122,1555081692,1996064986,2554220882,2821834349,2952996808,3210313671,3336571891,3584528711,113926993,338241895,666307205,773529912,1294757372,1396182291,1695183700,1986661051,2177026350,2456956037,2730485921,2820302411,3259730800,3345764771,3516065817,3600352804,4094571909,275423344,430227734,506948616,659060556,883997877,958139571,1322822218,1537002063,1747873779,1955562222,2024104815,2227730452,2361852424,2428436474,2756734187,3204031479,3329325298]; function rotr(x,n){return (x>>>n)|(x<<(32-n));} function ch(x,y,z){return (x&y)^(~x&z);} function maj(x,y,z){return (x&y)^(x&z)^(y&z);} function S0(x){return rotr(x,2)^rotr(x,13)^rotr(x,22);} function S1(x){return rotr(x,6)^rotr(x,11)^rotr(x,25);} function s0(x){return rotr(x,7)^rotr(x,18)^(x>>>3);} function s1(x){return rotr(x,17)^rotr(x,19)^(x>>>10);} var l=bytes.length; var ml=l*8; var withOne=new Uint8Array(l+1); withOne.set(bytes); withOne[l]=0x80; var k=((56-(withOne.length%64))+64)%64; var padded=new Uint8Array(withOne.length+k+8); padded.set(withOne); for (var i=0;i<8;i++){ padded[padded.length-1-i]=(ml>>> (8*i)) & 0xff; } var H=[1779033703,3144134277,1013904242,2773480762,1359893119,2600822924,528734635,1541459225]; var w=new Array(64); for (var i=0;i<padded.length;i+=64){ for (var j=0;j<16;j++){ var idx=i+j*4; w[j]= (padded[idx]<<24)|(padded[idx+1]<<16)|(padded[idx+2]<<8)|(padded[idx+3]); } for (var j=16;j<64;j++){ w[j]=(s1(w[j-2]) + w[j-7] + s0(w[j-15]) + w[j-16])>>>0; } var a=H[0],b=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7]; for (var j=0;j<64;j++){ var T1=(h + S1(e) + ch(e,f,g) + K[j] + w[j])>>>0; var T2=(S0(a) + maj(a,b,c))>>>0; h=g; g=f; f=e; e=(d+T1)>>>0; d=c; c=b; b=a; a=(T1+T2)>>>0; } H[0]=(H[0]+a)>>>0; H[1]=(H[1]+b)>>>0; H[2]=(H[2]+c)>>>0; H[3]=(H[3]+d)>>>0; H[4]=(H[4]+e)>>>0; H[5]=(H[5]+f)>>>0; H[6]=(H[6]+g)>>>0; H[7]=(H[7]+h)>>>0; } var out=new Uint8Array(32); for (var i=0;i<8;i++){ out[i*4]=(H[i]>>>24)&255; out[i*4+1]=(H[i]>>>16)&255; out[i*4+2]=(H[i]>>>8)&255; out[i*4+3]=H[i]&255; } return out; }\nfunction hmacSha256(keyStr, msgStr){ var block=64; var k=toBytes(keyStr); if (k.length>block) k=sha256(k); var kb=new Uint8Array(block); kb.set(k); var ipad=new Uint8Array(block); var opad=new Uint8Array(block); for (var i=0;i<block;i++){ ipad[i]=kb[i]^0x36; opad[i]=kb[i]^0x5c; } var msg=toBytes(msgStr); var inner=new Uint8Array(ipad.length+msg.length); inner.set(ipad); inner.set(msg,ipad.length); var innerHash=sha256(inner); var outer=new Uint8Array(opad.length+innerHash.length); outer.set(opad); outer.set(innerHash,opad.length); return bytesToHex(sha256(outer)); }\nreturn items.map(item => { const h = {}; for (const [k, v] of Object.entries(item.json.headers || {})) { h[String(k).toLowerCase()] = String(v); } const tsStr = h['x-promptpay-timestamp'] || '0'; const sig = (h['x-promptpay-signature'] || '').toLowerCase(); const ts = parseInt(tsStr, 10); const now = Math.floor(Date.now() / 1000); if (!ts || Math.abs(now - ts) > 600) { item.json = { auth_ok: false, reason: 'timestamp_invalid' }; return item; } const secret = item.json.secret; const rawBody = item.json.rawBody ?? JSON.stringify(item.json); const bodyHashHex = bytesToHex(sha256(toBytes(rawBody))); const expected = hmacSha256(secret, ts + \"\\n\" + bodyHashHex); const ok = sig === expected; let body; try { body = JSON.parse(rawBody); } catch (e) { body = item.json; } item.json = { auth_ok: ok, headers: h, body }; return item; });"
+      },
+      "name": "Verify HMAC",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        980,
+        300
+      ],
+      "continueOnFail": false
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.auth_ok}}",
+              "operation": "isTrue"
+            }
+          ]
+        }
+      },
+      "name": "IF Auth OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1230,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "responseCode": 401,
+        "responseBody": "{\"ok\":false,\"error\":\"unauthorized\"}"
+      },
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1470,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function isFiniteNumber(n){ return typeof n==='number' && Number.isFinite(n); }\nreturn items.map(item => { const b=item.json.body||{}; const mapped={ message_id: b.message_id ?? null, amount: (typeof b.amount==='number'? b.amount : Number(String(b.amount||'').replace(/[^0-9.]/g,''))), txn_time: (typeof b.txn_time==='number'? b.txn_time : Number(b.txn_time)), currency: b.currency ?? null, bank: b.bank ?? null, ref: b.ref ?? null, created_at: new Date().toISOString(), used: false }; const ok = typeof mapped.message_id==='string' && mapped.message_id && isFiniteNumber(mapped.amount) && isFiniteNumber(mapped.txn_time); item.json={ valid: ok, mapped, headers:item.json.headers, body:b }; return item; });"
+      },
+      "name": "Validate Schema",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1470,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.valid}}",
+              "operation": "isTrue"
+            }
+          ]
+        }
+      },
+      "name": "IF Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1710,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "message_id",
+              "value": "={{$json.mapped.message_id}}"
+            },
+            {
+              "name": "currency",
+              "value": "={{$json.mapped.currency}}"
+            },
+            {
+              "name": "bank",
+              "value": "={{$json.mapped.bank}}"
+            },
+            {
+              "name": "ref_code",
+              "value": "={{$json.mapped.ref}}"
+            },
+            {
+              "name": "created_at",
+              "value": "={{$json.mapped.created_at}}"
+            },
+            {
+              "name": "correlation_id",
+              "value": "={{(()=>{ const rnd=Math.random().toString(36).slice(2,8); const ts=Math.floor(Date.now()/1000); return 'ing-'+ts+'-'+rnd; })()}}"
+            }
+          ],
+          "number": [
+            {
+              "name": "amount",
+              "value": "={{(()=>{ const n=Number($json.mapped.amount); return Number.isFinite(n)?n:0; })()}}"
+            },
+            {
+              "name": "posted_at",
+              "value": "={{(()=>{ const n=Number($json.mapped.txn_time); return Number.isFinite(n)?n:Math.floor(Date.now()/1000); })()}}"
+            }
+          ],
+          "boolean": [
+            {
+              "name": "used",
+              "value": false
+            }
+          ]
+        }
+      },
+      "name": "Normalize",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        1950,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $json.headers || {}; const body = $json.body || {}; const system = 'You are a strict JSON mapper. Map bank payment notifications to this schema and output ONLY valid JSON (no markdown):\n{ message_id: string, amount: number, txn_time: integer (epoch seconds), currency: string, bank: string, ref: string, created_at: string (ISO timestamp), used: boolean }\nRules:\n- If a field is missing, use null except created_at now() ISO and used=false.\n- Parse amounts like 1,234.00 THB to 1234.00.\n- If time is ISO, convert to epoch seconds (assume Asia/Bangkok if ambiguous).'; const user = JSON.stringify({ headers, body }); return [{ json: { system, user } }];"
+      },
+      "name": "Build AI Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1950,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "responseFormat": "json",
+        "options": {
+          "timeout": 5000,
+          "headers": {
+            "Authorization": "={{ 'Bearer ' + $item(0).$node['Set Config'].json.or_api_key }}",
+            "HTTP-Referer": "={{$item(0).$node['Set Config'].json.or_referer}}",
+            "X-Title": "={{$item(0).$node['Set Config'].json.or_title}}",
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonParameters": true,
+        "bodyParametersJson": "={{ JSON.stringify({ model: $item(0).$node['Set Config'].json.or_model, response_format: { type: 'json_object' }, temperature: 0, max_tokens: 300, messages: [ { role: 'system', content: $json.system }, { role: 'user', content: $json.user } ] }) }}"
+      },
+      "name": "AI OpenRouter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2190,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => { try { const c = item.json.choices?.[0]?.message?.content || '{}'; const mapped = JSON.parse(c); item.json = { mapped }; } catch (e) { item.json = { mapped: { message_id: null, amount: 0, txn_time: Math.floor(Date.now()/1000), currency: null, bank: null, ref: null, created_at: new Date().toISOString(), used: false }, ai_error: String(e) }; } return item; });"
+      },
+      "name": "AI Parse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2430,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "message_id",
+              "value": "={{$json.mapped.message_id}}"
+            },
+            {
+              "name": "currency",
+              "value": "={{$json.mapped.currency}}"
+            },
+            {
+              "name": "bank",
+              "value": "={{$json.mapped.bank}}"
+            },
+            {
+              "name": "ref_code",
+              "value": "={{$json.mapped.ref}}"
+            },
+            {
+              "name": "created_at",
+              "value": "={{$json.mapped.created_at}}"
+            },
+            {
+              "name": "correlation_id",
+              "value": "={{(()=>{ const rnd=Math.random().toString(36).slice(2,8); const ts=Math.floor(Date.now()/1000); return 'ing-'+ts+'-'+rnd; })()}}"
+            }
+          ],
+          "number": [
+            {
+              "name": "amount",
+              "value": "={{(()=>{ const n=Number($json.mapped.amount); return Number.isFinite(n)?n:0; })()}}"
+            },
+            {
+              "name": "posted_at",
+              "value": "={{(()=>{ const n=Number($json.mapped.txn_time); return Number.isFinite(n)?n:Math.floor(Date.now()/1000); })()}}"
+            }
+          ],
+          "boolean": [
+            {
+              "name": "used",
+              "value": false
+            }
+          ]
+        }
+      },
+      "name": "Normalize (AI)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        2670,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{INSERT INTO payments (message_id,currency,bank,ref,amount,txn_time,created_at,used) VALUES ('{{$json.message_id}}','{{$json.currency}}','{{$json.bank}}','{{$json.ref_code}}',{{$json.amount}},to_timestamp({{$json.posted_at}}),'{{$json.created_at}}'::timestamptz,COALESCE({{$json.used}},false)) ON CONFLICT (message_id) DO UPDATE SET currency=EXCLUDED.currency, bank=EXCLUDED.bank, ref=EXCLUDED.ref, amount=EXCLUDED.amount, txn_time=EXCLUDED.txn_time, created_at=EXCLUDED.created_at, used=EXCLUDED.used;}}"
+      },
+      "name": "PG Upsert Payment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        2910,
+        180
+      ],
+      "notesInFlow": true,
+      "notes": "Set Postgres credentials in this node. Creates/updates row by message_id.",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "responseCode": 200,
+        "responseBody": "{\"ok\": true}"
+      },
+      "name": "Respond 200 Early",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1470,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{WITH payload AS ( SELECT {{$json.amount}}::numeric AS amt, to_timestamp({{$json.posted_at}}) AS paid_at ), cte AS ( SELECT s.session_token, s.order_id, s.amount_variant::numeric AS want_amt, s.created_at FROM payment_sessions s, payload WHERE s.status <> 'approved' AND s.amount_variant::numeric = payload.amt AND s.created_at BETWEEN (payload.paid_at - interval '600 seconds') AND (payload.paid_at + interval '600 seconds') ORDER BY s.created_at DESC LIMIT 1 ) SELECT session_token, order_id, want_amt FROM cte;}}"
+      },
+      "name": "PG Find Session (Exact 10m)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        3150,
+        180
+      ],
+      "continueOnFail": false
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.session_token}}",
+              "operation": "isSet"
+            }
+          ]
+        }
+      },
+      "name": "IF Session?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3390,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log(JSON.stringify({correlation_id:$json.correlation_id,session_token:$json.session_token,action:'session_lookup',outcome:'no_session_match',idem_drop:1,retry_attempt:0,retry_success:0,retry_fail:0,reason:'no_session'})); return [];"
+      },
+      "name": "Log No Session",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3630,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{INSERT INTO approvals (session_token, approved_amount, matched_at, ref_code, message_id) VALUES ('{{$json.session_token}}', {{$json.amount}}::numeric, to_timestamp({{$json.posted_at}}), {{$json.ref_code || null}}, {{$json.message_id || null}}) ON CONFLICT (session_token) DO NOTHING RETURNING session_token;}}"
+      },
+      "name": "PG UPSERT Approvals",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        3630,
+        100
+      ],
+      "continueOnFail": false
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.session_token}}",
+              "operation": "isSet"
+            }
+          ]
+        }
+      },
+      "name": "IF First Approval?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3870,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log(JSON.stringify({correlation_id:$json.correlation_id,session_token:$json.session_token,message_id:$json.message_id,action:'approval',outcome:'duplicate',idem_drop:1,retry_attempt:0,retry_success:0,retry_fail:0,reason:'duplicate_approval'})); return [];"
+      },
+      "name": "Log Duplicate Approval",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4110,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{UPDATE payments SET used = true WHERE message_id = {{ $json.message_id ? `'${$json.message_id}'` : 'NULL' }};}}"
+      },
+      "name": "PG Mark Payment Used",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        4110,
+        -20
+      ],
+      "continueOnFail": false
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{UPDATE payment_sessions SET status='approved', matched_message_id={{ $json.message_id || null }}, approved_amount={{ $json.amount }}::numeric WHERE session_token='{{$json.session_token}}';}}"
+      },
+      "name": "PG Update Session Approved",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        4350,
+        -20
+      ],
+      "continueOnFail": false
+    },
+    {
+      "parameters": {
+        "url": "=https://example.com/wp-json/san8n/v1/async-approve",
+        "method": "POST",
+        "jsonParameters": true,
+        "options": {
+          "headers": {
+            "X-San8n-Timestamp": "={{$json.posted_at}}",
+            "X-San8n-Signature": "={{$json.signature}}",
+            "Content-Type": "application/json"
+          }
+        },
+        "bodyParametersJson": "={{ JSON.stringify({ session_token:$json.session_token, amount:$json.amount, matched_at:$json.posted_at, ref_code:$json.ref_code, correlation_id:$json.correlation_id }) }}"
+      },
+      "name": "WP Async Approve",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        4590,
+        -20
+      ],
+      "continueOnFail": false
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log(JSON.stringify({correlation_id:$json.correlation_id,session_token:$json.session_token,message_id:$json.message_id,action:'callback',outcome:'sent',idem_drop:0,retry_attempt:$json.retry_attempt||0,retry_success:1,retry_fail:0,reason:'callback_sent'})); return items;"
+      },
+      "name": "Log Callback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4830,
+        -20
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "console.error(JSON.stringify({correlation_id:$json.correlation_id,session_token:$json.session_token,reason:($json.error?.message||'unknown'),idem_drop:$json.idem_drop||0,retry_attempt:$json.retry_attempt||0,retry_success:$json.retry_success||0,retry_fail:($json.retry_fail||0)+1})); return [];"
+      },
+      "name": "Log Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4830,
+        260
+      ]
+    }
+  ],
+  "connections": {
+    "WH Tasker": {
+      "main": [
+        [
+          {
+            "node": "Set Secret",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Secret": {
+      "main": [
+        [
+          {
+            "node": "Set Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Config": {
+      "main": [
+        [
+          {
+            "node": "Verify HMAC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify HMAC": {
+      "main": [
+        [
+          {
+            "node": "IF Auth OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "onError": [
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Auth OK?": {
+      "main": [
+        [
+          {
+            "node": "Respond 200 Early",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Schema": {
+      "main": [
+        [
+          {
+            "node": "IF Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Valid?": {
+      "main": [
+        [
+          {
+            "node": "Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build AI Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI OpenRouter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI OpenRouter": {
+      "main": [
+        [
+          {
+            "node": "AI Parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Parse": {
+      "main": [
+        [
+          {
+            "node": "Normalize (AI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize (AI)": {
+      "main": [
+        [
+          {
+            "node": "PG Upsert Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize": {
+      "main": [
+        [
+          {
+            "node": "PG Upsert Payment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG Upsert Payment": {
+      "main": [
+        [
+          {
+            "node": "PG Find Session (Exact 10m)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "onError": [
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond 200 Early": {
+      "main": [
+        [
+          {
+            "node": "Validate Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG Find Session (Exact 10m)": {
+      "main": [
+        [
+          {
+            "node": "IF Session?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "onError": [
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Session?": {
+      "main": [
+        [
+          {
+            "node": "PG UPSERT Approvals",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log No Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG UPSERT Approvals": {
+      "main": [
+        [
+          {
+            "node": "IF First Approval?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "onError": [
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF First Approval?": {
+      "main": [
+        [
+          {
+            "node": "PG Mark Payment Used",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Duplicate Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG Mark Payment Used": {
+      "main": [
+        [
+          {
+            "node": "PG Update Session Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "onError": [
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PG Update Session Approved": {
+      "main": [
+        [
+          {
+            "node": "WP Async Approve",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "onError": [
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WP Async Approve": {
+      "main": [
+        [
+          {
+            "node": "Log Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "onError": [
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true
+}
