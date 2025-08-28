@@ -10,6 +10,7 @@ Slipless PromptPay flow (no bank/PSP APIs, no fees):
 
 ## Tasks
 - [x] Update docs to slipless architecture and task breakdown
+- [x] Correct approvals backfill to preserve historical last_seen_at
 - [ ] WP REST proxy: `POST /wp-json/san8n/v1/qr/generate` (server‑side HMAC) → forward to n8n
 - [ ] WP REST proxy: `GET /wp-json/san8n/v1/order/status` → poll n8n session store
 - [ ] WP REST callback: `POST /wp-json/san8n/v1/order/paid` from n8n to mark paid/cancelled

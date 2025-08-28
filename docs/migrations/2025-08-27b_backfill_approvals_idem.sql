@@ -17,7 +17,7 @@ BEGIN
           md5(session_token || '|' || COALESCE(ref_code,'') || '|' || approved_amount::text || '|' || EXTRACT(EPOCH FROM matched_at)::text)
         )
       ),
-      last_seen_at = COALESCE(last_seen_at, created_at)
+      last_seen_at = created_at
     WHERE source IS NULL OR idempotency_key IS NULL;
   END IF;
 END$$;
