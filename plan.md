@@ -1,5 +1,7 @@
 # plan.md — Sprint Plan (2025-08-25)
 
+PR1 – feat/idempotent-approvals (DB-only)
+
 ## Goal
 Slipless PromptPay flow (no bank/PSP APIs, no fees):
 - Live EMV QR per order via n8n with unique cents (0–99 satang) and 10‑min TTL

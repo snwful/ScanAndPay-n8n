@@ -1,4 +1,5 @@
 -- Scan & Pay (n8n) minimal Postgres schema
+-- Documentation only; apply DDL via docs/migrations/
 -- Tables: payments, payment_sessions
 -- Ensure timezone is set appropriately; using timestamptz for safety.
 
@@ -81,15 +82,20 @@ CREATE INDEX IF NOT EXISTS idx_payment_sessions_created ON payment_sessions (cre
 CREATE INDEX IF NOT EXISTS idx_payment_sessions_status ON payment_sessions (status);
 CREATE INDEX IF NOT EXISTS idx_payment_sessions_ref_code ON payment_sessions (ref_code);
 
--- Approvals dedupe gate
 CREATE TABLE IF NOT EXISTS approvals (
   session_token    text PRIMARY KEY,
   approved_amount  numeric(12,2) NOT NULL,
   matched_at       timestamptz    NOT NULL,
   ref_code         text,
   message_id       text,
+  source           text,
+  idempotency_key  text,
+  last_seen_at     timestamptz NOT NULL DEFAULT now(),
   created_at       timestamptz    NOT NULL DEFAULT now()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS approvals_source_idempotency_key_uq
+  ON approvals (source, idempotency_key);
 
 CREATE UNIQUE INDEX IF NOT EXISTS approvals_message_id_uq
   ON approvals (message_id)
@@ -97,6 +103,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS approvals_message_id_uq
 
 CREATE INDEX IF NOT EXISTS approvals_created_at_idx
   ON approvals (created_at);
+
+-- UPSERT pattern:
+-- INSERT INTO approvals (source, idempotency_key, session_token, approved_amount, matched_at)
+-- VALUES ('src', 'idem123', 'sess', 0, now())
+-- ON CONFLICT (source, idempotency_key) DO UPDATE
+--   SET last_seen_at = EXCLUDED.last_seen_at;
 
 -- Optional FK if you expect matching always to a known payment (not enforced to allow decoupled ingestion)
 -- ALTER TABLE payment_sessions
@@ -218,8 +230,14 @@ CREATE TABLE IF NOT EXISTS approvals (
   matched_at       timestamptz    NOT NULL,
   ref_code         text,
   message_id       text,
+  source           text,
+  idempotency_key  text,
+  last_seen_at     timestamptz NOT NULL DEFAULT now(),
   created_at       timestamptz    NOT NULL DEFAULT now()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS approvals_source_idempotency_key_uq
+  ON approvals (source, idempotency_key);
 
 CREATE UNIQUE INDEX IF NOT EXISTS approvals_message_id_uq
   ON approvals (message_id)
@@ -368,6 +386,19 @@ BEGIN
     WHERE s.session_token = p_session_token
   )
   SELECT message_id, amount FROM cte;
+END$$;
+
+-- Upsert approval with idempotency
+CREATE OR REPLACE FUNCTION fn_upsert_approval(
+  p_source text,
+  p_idem_key text,
+  p_session_token text
+) RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  INSERT INTO approvals (source, idempotency_key, session_token, approved_amount, matched_at, last_seen_at)
+  VALUES (p_source, p_idem_key, p_session_token, 0, now(), now())
+  ON CONFLICT (source, idempotency_key) DO UPDATE
+    SET last_seen_at = EXCLUDED.last_seen_at;
 END$$;
 
 ------------------------------------------------------------
