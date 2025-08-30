@@ -350,42 +350,49 @@ BEGIN
   RETURN v_count;
 END$$;
 
--- Match and approve a session by exact amount within time window (mirrors WP Order Status)
--- p_time_window_sec: e.g. 900 (15 minutes)
--- p_amount_tol: use 0 for exact match policy
+-- Documentation only; apply DDL via docs/migrations/2025-08-27e_fn_match_and_approve_session.sql
+-- Match and approve a session within a time window, ensuring atomic state changes.
+-- Parameters: session_token, txn_time, window_secs (default 600)
 CREATE OR REPLACE FUNCTION fn_match_and_approve_session(
   p_session_token text,
-  p_time_window_sec int,
-  p_amount_tol numeric
-) RETURNS TABLE(message_id text, amount numeric) LANGUAGE plpgsql AS $$
+  p_txn_time timestamptz,
+  p_window_secs integer
+) RETURNS TABLE(approved boolean, reason text) LANGUAGE plpgsql AS $$
+DECLARE
+  v_created_at timestamptz;
+  v_status text;
+  v_source text;
+  v_idem_key text;
+  v_now timestamptz := now();
 BEGIN
-  RETURN QUERY
-  WITH params AS (
-    SELECT s.created_at AS center,
-           s.amount_variant::numeric AS want_amt,
-           p_amount_tol::numeric AS tol,
-           p_time_window_sec::int AS win
-    FROM payment_sessions s
-    WHERE s.session_token = p_session_token
-  ),
-  cte AS (
-    SELECT p.message_id, p.amount
-    FROM payments p, params
-    WHERE p.used = false
-      AND p.created_at BETWEEN (params.center - (params.win || ' seconds')::interval) AND now()
-      AND p.amount BETWEEN (params.want_amt - params.tol) AND (params.want_amt + params.tol)
-    ORDER BY p.created_at DESC
-    LIMIT 1
-  ),
-  mark_pay AS (
-    UPDATE payments p SET used=true FROM cte WHERE p.message_id = cte.message_id
-  ),
-  mark_sess AS (
-    UPDATE payment_sessions s SET status='approved', matched_message_id=cte.message_id, approved_amount=cte.amount
-    FROM cte
-    WHERE s.session_token = p_session_token
-  )
-  SELECT message_id, amount FROM cte;
+  SELECT created_at, status INTO v_created_at, v_status
+    FROM payment_sessions
+    WHERE session_token = p_session_token
+    FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN QUERY SELECT false, 'not_found';
+    RETURN;
+  END IF;
+  IF abs(EXTRACT(EPOCH FROM (p_txn_time - v_created_at))) > COALESCE(p_window_secs, 600) THEN
+    RETURN QUERY SELECT false, 'outside_window';
+    RETURN;
+  END IF;
+  v_source := current_setting('san8n.source', true);
+  v_idem_key := current_setting('san8n.idem_key', true);
+  IF v_source IS NULL THEN v_source := 'tasker'; END IF;
+  IF v_idem_key IS NULL THEN
+    v_idem_key := md5(p_session_token || ':' || EXTRACT(EPOCH FROM p_txn_time));
+  END IF;
+  INSERT INTO approvals (source, idempotency_key, session_token, approved_amount, matched_at, last_seen_at)
+  VALUES (v_source, v_idem_key, p_session_token, 0, p_txn_time, v_now)
+  ON CONFLICT (source, idempotency_key) DO UPDATE
+    SET last_seen_at = EXCLUDED.last_seen_at;
+  IF v_status <> 'approved' THEN
+    UPDATE payment_sessions SET status = 'approved' WHERE session_token = p_session_token;
+    RETURN QUERY SELECT true, NULL;
+  ELSE
+    RETURN QUERY SELECT false, 'already_approved';
+  END IF;
 END$$;
 
 -- Upsert approval with idempotency
