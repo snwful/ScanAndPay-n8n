@@ -24,6 +24,11 @@ class SAN8N_REST_API {
      */
     public function qr_proxy($request) {
         $correlation_id = $this->logger->get_correlation_id();
+        $session_token_raw = $request->get_param('session_token');
+        $this->logger->info('qr_proxy_request', array(
+            'correlation_id' => $correlation_id,
+            'session_token' => is_string($session_token_raw) ? $session_token_raw : '',
+        ));
         try {
             // Normalize and sanitize inputs similar to verify_slip
             $order_id_raw = $request->get_param('order_id');
@@ -184,9 +189,15 @@ class SAN8N_REST_API {
                 'X-PromptPay-Signature' => $signature,
                 'X-PromptPay-Version' => '1.0',
                 'X-Correlation-ID' => (string) $correlation_id,
+                'X-Idempotency-Key' => hash('sha256', (string) $session_token . '|' . (string) $order_id),
             );
 
             $timeout = is_callable('apply_filters') ? call_user_func('apply_filters', 'san8n_qr_proxy_timeout', 8) : 8;
+            $this->logger->info('qr_proxy_outbound', array(
+                'url' => $qr_url,
+                'correlation_id' => $correlation_id,
+                'session_token' => $session_token,
+            ));
             $response = is_callable('wp_remote_post') ? call_user_func('wp_remote_post', $qr_url, array(
                 'timeout' => $timeout,
                 'sslverify' => true,
@@ -202,6 +213,11 @@ class SAN8N_REST_API {
 
             $resp_code = is_callable('wp_remote_retrieve_response_code') ? call_user_func('wp_remote_retrieve_response_code', $response) : 200;
             $resp_body = is_callable('wp_remote_retrieve_body') ? call_user_func('wp_remote_retrieve_body', $response) : '';
+            $this->logger->info('qr_proxy_response', array(
+                'status_code' => $resp_code,
+                'correlation_id' => $correlation_id,
+                'session_token' => $session_token,
+            ));
             $data = json_decode($resp_body, true);
             if (!is_array($data)) {
                 $data = array('error' => 'bad_response');
@@ -474,6 +490,11 @@ class SAN8N_REST_API {
             $order_total = is_numeric($order_total_str) ? (float) $order_total_str : 0.0;
             $session_token_raw = $request->get_param('session_token');
             $session_token = is_callable('sanitize_text_field') ? call_user_func('sanitize_text_field', $session_token_raw) : (is_string($session_token_raw) ? $session_token_raw : '');
+            $this->logger->info('verify_slip_request', array(
+                'correlation_id' => $correlation_id,
+                'session_token' => $session_token,
+                'order_id' => $order_id,
+            ));
 
             $settings = is_callable('get_option') ? call_user_func('get_option', SAN8N_OPTIONS_KEY, array()) : array();
 
@@ -498,6 +519,11 @@ class SAN8N_REST_API {
             $order = is_callable('wc_get_order') ? call_user_func('wc_get_order', $order_id) : null;
 
             if ($response_data['status'] === 'approved') {
+                $this->logger->info('verify_slip_result', array(
+                    'status' => 'approved',
+                    'correlation_id' => $correlation_id,
+                    'session_token' => $session_token,
+                ));
                 $reference_id = isset($response_data['reference_id']) ? (is_callable('sanitize_text_field') ? call_user_func('sanitize_text_field', $response_data['reference_id']) : (is_string($response_data['reference_id']) ? $response_data['reference_id'] : '')) : '';
                 $approved_amount = isset($response_data['approved_amount']) ? floatval($response_data['approved_amount']) : 0;
 
@@ -538,6 +564,12 @@ class SAN8N_REST_API {
                 return class_exists('WP_REST_Response') ? new WP_REST_Response($resp_payload, 200) : $resp_payload;
             }
 
+            $this->logger->info('verify_slip_result', array(
+                'status' => 'rejected',
+                'reason' => isset($response_data['reason']) ? $response_data['reason'] : '',
+                'correlation_id' => $correlation_id,
+                'session_token' => $session_token,
+            ));
             $reason = isset($response_data['reason']) ? (is_callable('sanitize_text_field') ? call_user_func('sanitize_text_field', $response_data['reason']) : (is_string($response_data['reason']) ? $response_data['reason'] : '')) : '';
             $message = isset($response_data['message']) ? (is_callable('sanitize_text_field') ? call_user_func('sanitize_text_field', $response_data['message']) : (is_string($response_data['message']) ? $response_data['message'] : '')) : $reason;
 

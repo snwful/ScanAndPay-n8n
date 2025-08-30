@@ -4,7 +4,7 @@ Tags: woocommerce, payment gateway, promptpay, qr code, thailand
 Requires at least: 6.0
 Tested up to: 6.4
 Requires PHP: 8.0
-Stable tag: 1.1.1
+Stable tag: 1.1.3
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -240,6 +240,9 @@ Yes, administrators can manually approve or reject payments from the order edit 
 - Long term: Implement slipless "unique-amount + email/SMS alert + webhook auto-matching" via Laravel with idempotency, manual review queue, and expanded bank parsers.
 
 == Changelog ==
+
+= 1.1.3 - 2025-08-29 =
+* Add structured logging hooks and retry/backoff policy for callbacks
 
 = 1.1.1 - 2025-08-25 =
 * Ensure PromptPay shortcode and assets load on checkout

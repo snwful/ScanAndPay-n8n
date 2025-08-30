@@ -53,13 +53,26 @@ abstract class SAN8N_Verifier_Abstract implements SAN8N_Verifier_Interface {
         return $body;
     }
 
-    protected function do_request($headers, $body) {
+    protected function do_request($headers, $body, $logger = null, $session_token = '') {
         $timeout = function_exists('apply_filters') ? apply_filters('san8n_verifier_timeout', 8, $this->backend) : 8;
-        $retries = function_exists('apply_filters') ? (int) apply_filters('san8n_verifier_retries', 0, $this->backend) : 0;
+        $default_retries = (defined('SAN8N_CALLBACK_ASYNC') && SAN8N_CALLBACK_ASYNC) ? 2 : 0;
+        $retries = function_exists('apply_filters') ? (int) apply_filters('san8n_verifier_retries', $default_retries, $this->backend) : $default_retries;
+        if (!(defined('SAN8N_CALLBACK_ASYNC') && SAN8N_CALLBACK_ASYNC)) {
+            $retries = 0;
+        }
         $attempt = 0;
         $last = null;
+        $delay = 1;
         do {
             $attempt++;
+            if ($logger) {
+                $logger->info('outbound_call', array(
+                    'url' => $this->url,
+                    'attempt' => $attempt,
+                    'session_token' => $session_token,
+                    'correlation_id' => isset($headers['X-Correlation-ID']) ? $headers['X-Correlation-ID'] : '',
+                ));
+            }
             if (is_callable('wp_remote_post')) {
                 $last = call_user_func('wp_remote_post', $this->url, array(
                     'timeout' => $timeout,
@@ -69,8 +82,44 @@ abstract class SAN8N_Verifier_Abstract implements SAN8N_Verifier_Interface {
                 ));
             }
             $is_err = is_callable('is_wp_error') ? call_user_func('is_wp_error', $last) : false;
-            if (!$is_err) { break; }
-        } while ($attempt <= $retries);
+            $status = $is_err ? 0 : (is_callable('wp_remote_retrieve_response_code') ? call_user_func('wp_remote_retrieve_response_code', $last) : 0);
+            if ($logger) {
+                $context = array(
+                    'attempt' => $attempt,
+                    'status_code' => $status,
+                    'session_token' => $session_token,
+                    'correlation_id' => isset($headers['X-Correlation-ID']) ? $headers['X-Correlation-ID'] : '',
+                );
+                if ($attempt > 1) { $context['retry_attempt'] = $attempt - 1; }
+                $logger->info('outbound_response', $context);
+            }
+            if (!$is_err && $status >= 200 && $status < 500) {
+                if ($attempt > 1 && $logger) {
+                    $logger->info('retry_success', array(
+                        'retry_success' => $attempt - 1,
+                        'session_token' => $session_token,
+                        'correlation_id' => isset($headers['X-Correlation-ID']) ? $headers['X-Correlation-ID'] : '',
+                    ));
+                }
+                break;
+            }
+            if ($attempt > $retries) {
+                if ($logger) {
+                    $logger->error('retry_fail', array(
+                        'retry_fail' => 1,
+                        'session_token' => $session_token,
+                        'correlation_id' => isset($headers['X-Correlation-ID']) ? $headers['X-Correlation-ID'] : '',
+                    ));
+                }
+                break;
+            }
+            if (defined('SAN8N_CALLBACK_ASYNC') && SAN8N_CALLBACK_ASYNC) {
+                $jitter = function_exists('mt_rand') ? mt_rand(0, 500) / 1000 : 0;
+                sleep($delay);
+                usleep((int) ($jitter * 1000000));
+                $delay *= 2;
+            }
+        } while (true);
         return $last;
     }
 }
@@ -112,9 +161,11 @@ class SAN8N_Verifier_N8n extends SAN8N_Verifier_Abstract {
             'X-PromptPay-Signature' => $signature,
             'X-PromptPay-Version' => '1.0',
             'X-Correlation-ID' => (string) $correlation_id,
+            'X-Idempotency-Key' => hash('sha256', (string) $session_token . '|' . (string) $order_id),
         );
 
-        $response = $this->do_request($headers, $body);
+        $logger = new SAN8N_Logger($correlation_id);
+        $response = $this->do_request($headers, $body, $logger, (string) $session_token);
         $is_err = is_callable('is_wp_error') ? call_user_func('is_wp_error', $response) : false;
         if ($is_err) {
             return array('status' => 'rejected', 'reason' => 'verifier_unreachable', 'message' => 'verifier_unreachable');
@@ -166,9 +217,11 @@ class SAN8N_Verifier_Laravel extends SAN8N_Verifier_Abstract {
             'X-PromptPay-Signature' => $signature,
             'X-PromptPay-Version' => '1.0',
             'X-Correlation-ID' => (string) $correlation_id,
+            'X-Idempotency-Key' => hash('sha256', (string) $session_token . '|' . (string) $order_id),
         );
 
-        $response = $this->do_request($headers, $body);
+        $logger = new SAN8N_Logger($correlation_id);
+        $response = $this->do_request($headers, $body, $logger, (string) $session_token);
         $is_err = is_callable('is_wp_error') ? call_user_func('is_wp_error', $response) : false;
         if ($is_err) {
             return array('status' => 'rejected', 'reason' => 'verifier_unreachable', 'message' => 'verifier_unreachable');

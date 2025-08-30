@@ -8,5 +8,7 @@ Entries reference session logs under `docs/sessions/`.
 - 2025-08-26 — n8n Tasker Ingest: Early 200 ACK, exact-match 10m session lookup, DB UPSERT idempotency (`approvals` table), duplicate callback suppression, structured logging with correlation_id. No contract changes to existing endpoints.
 - 2025-08-27 — Add source/idempotency columns with helper UPSERT for approvals table.
 - 2025-08-28 — Tasker ingest v5.4 adds error paths and structured metrics; workflow bumped to ai-openrouter v3.
-- 2025-08-28 — Add atomic session match function and consolidate Tasker ingest to single DB call (v5.5 ai-openrouter v4).
-- 2025-08-29 — Fix fn_match_and_approve_session to use status instead of non-existent approved_at column.
+- 2025-08-29 — Add match_and_approve_session metrics and consolidate Tasker ingest to single DB call (v5.5 ai-openrouter v3).
+- 2025-08-29 — Fix match_and_approve_session to use status instead of non-existent approved_at column.
+- 2025-08-29 — Add structured logging and callback retry with exponential backoff in PHP.
+- 2025-08-30 — Enforce SAN8N_CALLBACK_ASYNC toggle for verifier retries and merge changelog entries.

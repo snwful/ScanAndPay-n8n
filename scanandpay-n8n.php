@@ -3,7 +3,7 @@
  * Plugin Name: Scan & Pay (n8n)
  * Plugin URI: https://github.com/your-org/scanandpay-n8n
  * Description: PromptPay payment gateway with inline slip verification via n8n
- * Version: 1.1.2
+ * Version: 1.1.3
  * Author: Your Company
  * Author URI: https://yourcompany.com
  * Text Domain: scanandpay-n8n
@@ -24,7 +24,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('SAN8N_VERSION', '1.1.2');
+define('SAN8N_VERSION', '1.1.3');
 define('SAN8N_PLUGIN_FILE', __FILE__);
 define('SAN8N_PLUGIN_DIR', is_callable('plugin_dir_path') ? call_user_func('plugin_dir_path', __FILE__) : (dirname(__FILE__) . '/'));
 define('SAN8N_PLUGIN_URL', is_callable('plugin_dir_url') ? call_user_func('plugin_dir_url', __FILE__) : '');
@@ -35,6 +35,10 @@ define('SAN8N_OPTIONS_KEY', 'woocommerce_scanandpay_n8n_settings');
 define('SAN8N_SESSION_FLAG', 'san8n_approved');
 define('SAN8N_LOGGER_SOURCE', 'scanandpay-n8n');
 define('SAN8N_CAPABILITY', 'san8n_manage');
+// Toggle async callback retries
+if (!defined('SAN8N_CALLBACK_ASYNC')) {
+    define('SAN8N_CALLBACK_ASYNC', true);
+}
 
 // Initialize plugin (guarded for IDEs)
 if (is_callable('add_action')) {
