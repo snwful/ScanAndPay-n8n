@@ -12,12 +12,12 @@ CREATE OR REPLACE FUNCTION fn_match_and_approve_session(
 LANGUAGE plpgsql AS $$
 DECLARE
   v_created_at timestamptz;
-  v_approved_at timestamptz;
+  v_status text;
   v_source text;
   v_idem_key text;
   v_now timestamptz := now();
 BEGIN
-  SELECT created_at, approved_at INTO v_created_at, v_approved_at
+  SELECT created_at, status INTO v_created_at, v_status
   FROM payment_sessions
   WHERE session_token = p_session_token
   FOR UPDATE;
@@ -46,9 +46,9 @@ BEGIN
   ON CONFLICT (source, idempotency_key) DO UPDATE
     SET last_seen_at = EXCLUDED.last_seen_at;
 
-  IF v_approved_at IS NULL THEN
+  IF v_status <> 'approved' THEN
     UPDATE payment_sessions
-      SET approved_at = v_now
+      SET status = 'approved'
       WHERE session_token = p_session_token;
     RETURN QUERY SELECT true, NULL;
   ELSE

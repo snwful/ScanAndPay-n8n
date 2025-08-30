@@ -21,6 +21,7 @@ Slipless PromptPay flow (no bank/PSP APIs, no fees):
 - [ ] WP gateway UI: render QR from EMV response and start polling until paid/expired
 - [ ] Security hardening: HMAC, HTTPS, payload guards, secret rotation, idempotency
 - [ ] Observability: logs, dead‑letter, metrics; tester checklist
+- [x] Fix fn_match_and_approve_session to drop unused approved_at column
 
 ## Process
 
