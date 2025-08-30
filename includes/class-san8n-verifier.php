@@ -55,14 +55,15 @@ abstract class SAN8N_Verifier_Abstract implements SAN8N_Verifier_Interface {
 
     protected function do_request($headers, $body, $logger = null, $session_token = '') {
         $timeout = function_exists('apply_filters') ? apply_filters('san8n_verifier_timeout', 8, $this->backend) : 8;
-        $default_retries = (defined('SAN8N_CALLBACK_ASYNC') && SAN8N_CALLBACK_ASYNC) ? 2 : 0;
+        // Default to 3 retries (total 4 attempts) to realize 1s,2s,4s backoff
+        $default_retries = (defined('SAN8N_CALLBACK_ASYNC') && SAN8N_CALLBACK_ASYNC) ? 3 : 0;
         $retries = function_exists('apply_filters') ? (int) apply_filters('san8n_verifier_retries', $default_retries, $this->backend) : $default_retries;
         if (!(defined('SAN8N_CALLBACK_ASYNC') && SAN8N_CALLBACK_ASYNC)) {
             $retries = 0;
         }
         $attempt = 0;
         $last = null;
-        $delay = 1;
+        $delay = 1; // seconds
         do {
             $attempt++;
             if ($logger) {
@@ -114,10 +115,19 @@ abstract class SAN8N_Verifier_Abstract implements SAN8N_Verifier_Interface {
                 break;
             }
             if (defined('SAN8N_CALLBACK_ASYNC') && SAN8N_CALLBACK_ASYNC) {
-                $jitter = function_exists('mt_rand') ? mt_rand(0, 500) / 1000 : 0;
+                $jitter = function_exists('mt_rand') ? mt_rand(0, 500) / 1000 : 0; // 0–0.5s
+                if ($logger) {
+                    $logger->info('retry_backoff', array(
+                        'sleep_seconds' => $delay,
+                        'jitter_seconds' => $jitter,
+                        'next_attempt' => $attempt + 1,
+                        'session_token' => $session_token,
+                        'correlation_id' => isset($headers['X-Correlation-ID']) ? $headers['X-Correlation-ID'] : '',
+                    ));
+                }
                 sleep($delay);
-                usleep((int) ($jitter * 1000000));
-                $delay *= 2;
+                if ($jitter > 0) { usleep((int) ($jitter * 1000000)); }
+                $delay = min($delay * 2, 8); // cap growth to avoid runaway
             }
         } while (true);
         return $last;

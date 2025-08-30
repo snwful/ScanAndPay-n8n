@@ -12,3 +12,4 @@ Entries reference session logs under `docs/sessions/`.
 - 2025-08-29 — Fix match_and_approve_session to use status instead of non-existent approved_at column.
 - 2025-08-29 — Add structured logging and callback retry with exponential backoff in PHP.
 - 2025-08-30 — Enforce SAN8N_CALLBACK_ASYNC toggle for verifier retries and merge changelog entries.
+- 2025-08-30 — Retry/backoff tuned to 1s/2s/4s (default 4 attempts). Added `retry_backoff` structured log (delay, jitter). Idempotent headers propagated on retries. Version bumped to 1.1.4.
