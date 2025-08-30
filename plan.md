@@ -15,12 +15,13 @@ Slipless PromptPay flow (no bank/PSP APIs, no fees):
 - [ ] WP REST proxy: `GET /wp-json/san8n/v1/order/status` → poll n8n session store
 - [ ] WP REST callback: `POST /wp-json/san8n/v1/order/paid` from n8n to mark paid/cancelled
 - [ ] n8n: persist `payment_sessions` (session_token, amount_variant, TTL, used)
-- [ ] n8n: Tasker Ingest match engine (exact amount to unique cents within TTL; anti‑reuse)
+- [x] n8n: Tasker Ingest match engine (exact amount to unique cents within TTL; anti‑reuse, stored function)
 - [x] n8n: Tasker ingest idempotency + early ACK
 - [x] n8n: Tasker ingest error handling & metrics
 - [ ] WP gateway UI: render QR from EMV response and start polling until paid/expired
 - [ ] Security hardening: HMAC, HTTPS, payload guards, secret rotation, idempotency
 - [ ] Observability: logs, dead‑letter, metrics; tester checklist
+- [x] Fix fn_match_and_approve_session to drop unused approved_at column
 
 ## Process
 
