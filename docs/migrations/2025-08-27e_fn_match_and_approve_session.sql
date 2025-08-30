@@ -2,7 +2,8 @@
 -- Creates fn_match_and_approve_session(p_session_token text, p_txn_time timestamptz, p_window_secs integer)
 -- Safe to rerun.
 
-DROP FUNCTION IF EXISTS fn_match_and_approve_session(text,int,numeric);
+-- correct old signature to ensure prior versions are removed
+DROP FUNCTION IF EXISTS fn_match_and_approve_session(text, timestamptz, integer);
 
 CREATE OR REPLACE FUNCTION fn_match_and_approve_session(
   p_session_token text,

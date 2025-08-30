@@ -81,11 +81,25 @@ class SAN8N_Logger {
         return $message;
     }
 
-    private function format_message($message, $context = array()) {
+    private function mask_context($level, $context) {
+        // Mask session_token at info and higher (i.e., non-debug). Keep full only at debug level.
+        if (!is_array($context)) { return $context; }
+        if (strtolower((string) $level) !== 'debug' && array_key_exists('session_token', $context)) {
+            $tok = (string) $context['session_token'];
+            $hash = function_exists('hash') ? hash('sha256', $tok) : substr(md5($tok), 0, 64);
+            $context['session_token'] = 'sha256:' . substr($hash, 0, 12);
+        }
+        return $context;
+    }
+
+    private function format_message($message, $context = array(), $level = 'info') {
         $formatted = sprintf('[%s] %s', $this->correlation_id, $message);
-        
-        if (!empty($context)) {
-            $json = is_callable('wp_json_encode') ? call_user_func('wp_json_encode', $context) : json_encode($context);
+
+        // Apply context masking by level (e.g., session_token)
+        $safe_context = $this->mask_context($level, $context);
+
+        if (!empty($safe_context)) {
+            $json = is_callable('wp_json_encode') ? call_user_func('wp_json_encode', $safe_context) : json_encode($safe_context);
             $formatted .= ' | Context: ' . $json;
         }
 
@@ -97,7 +111,7 @@ class SAN8N_Logger {
             return;
         }
 
-        $formatted_message = $this->format_message($message, $context);
+        $formatted_message = $this->format_message($message, $context, $level);
         $this->logger->log($level, $formatted_message, array('source' => $this->source));
     }
 

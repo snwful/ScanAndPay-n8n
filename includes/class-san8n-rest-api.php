@@ -386,7 +386,11 @@ class SAN8N_REST_API {
         $nonce = method_exists($request, 'get_header') ? $request->get_header('X-WP-Nonce') : '';
         if (is_callable('wp_verify_nonce')) {
             if (!call_user_func('wp_verify_nonce', $nonce, 'wp_rest')) {
-                return false;
+                return new WP_Error(
+                    'rest_forbidden',
+                    (is_callable('__') ? call_user_func('__', 'Invalid nonce.', 'scanandpay-n8n') : 'Invalid nonce.'),
+                    array('status' => 401)
+                );
             }
         }
 
@@ -424,16 +428,25 @@ class SAN8N_REST_API {
     }
 
     private function get_client_ip() {
-        $ip_keys = array('HTTP_CF_CONNECTING_IP', 'HTTP_CLIENT_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR');
-        foreach ($ip_keys as $key) {
-            if (!empty($_SERVER[$key])) {
-                $ip = filter_var($_SERVER[$key], FILTER_VALIDATE_IP);
-                if ($ip !== false) {
-                    return $ip;
+        // Default to REMOTE_ADDR (strict). Allow trusted proxy headers via filter.
+        $ip = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
+        $allowed = (is_callable('apply_filters') ? call_user_func('apply_filters', 'san8n_trusted_proxy_headers', array()) : array());
+        if (is_array($allowed) && !empty($allowed)) {
+            foreach ($allowed as $h) {
+                $key = 'HTTP_' . strtoupper(str_replace('-', '_', (string) $h));
+                if (!empty($_SERVER[$key])) {
+                    $candidates = explode(',', (string) $_SERVER[$key]);
+                    $cand = trim((string) $candidates[0]);
+                    $parsed = filter_var($cand, FILTER_VALIDATE_IP);
+                    if ($parsed !== false) {
+                        $ip = $parsed;
+                        break;
+                    }
                 }
             }
         }
-        return '127.0.0.1';
+        if (empty($ip)) { $ip = '127.0.0.1'; }
+        return $ip;
     }
 
     public function validate_image($file_data) {
@@ -452,15 +465,29 @@ class SAN8N_REST_API {
             return new WP_Error('upload_size', $msg);
         }
 
-        // Check file type
-        $allowed_types = array('image/jpeg', 'image/jpg', 'image/png');
-        $file_type = is_callable('wp_check_filetype') ? call_user_func('wp_check_filetype', $file['name']) : array('ext' => pathinfo($file['name'], PATHINFO_EXTENSION));
-        $mime_guess = 'image/' . strtolower($file_type['ext']);
-        $current_type = isset($file['type']) ? $file['type'] : $mime_guess;
-        
-        if (!in_array($current_type, $allowed_types, true) || !in_array($mime_guess, $allowed_types, true)) {
+        // Strong server-side type detection
+        $checked = is_callable('wp_check_filetype_and_ext') ? call_user_func('wp_check_filetype_and_ext', $file['tmp_name'], $file['name']) : array('ext' => '', 'type' => '');
+        $ext  = isset($checked['ext']) ? strtolower((string) $checked['ext']) : '';
+        $mime = isset($checked['type']) ? strtolower((string) $checked['type']) : '';
+        $allow_ext  = array('jpg', 'jpeg', 'png');
+        $allow_mime = array('image/jpeg', 'image/png');
+        if (empty($ext) || empty($mime) || !in_array($ext, $allow_ext, true) || !in_array($mime, $allow_mime, true)) {
             $msg = is_callable('__') ? call_user_func('__', 'Invalid file type.', 'scanandpay-n8n') : 'Invalid file type.';
             return new WP_Error('upload_type', $msg);
+        }
+
+        // Optional: corroborate via finfo
+        if (function_exists('finfo_open')) {
+            $fi = finfo_open(FILEINFO_MIME_TYPE);
+            if ($fi) {
+                $real = @finfo_file($fi, $file['tmp_name']);
+                finfo_close($fi);
+                if ($real && strtolower((string) $real) !== $mime) {
+                    if ($this->logger && method_exists($this->logger, 'warning')) {
+                        $this->logger->warning('mime_mismatch', array('wp_mime' => $mime, 'finfo' => $real));
+                    }
+                }
+            }
         }
 
         return true;
@@ -610,7 +637,10 @@ class SAN8N_REST_API {
             $msg = is_callable('__') ? call_user_func('__', 'Upload failed.', 'scanandpay-n8n') : 'Upload failed.';
             return new WP_Error('upload_failed', $msg);
         }
-        $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+        // Derive extension from validated result, fallback to original
+        $checked = is_callable('wp_check_filetype_and_ext') ? call_user_func('wp_check_filetype_and_ext', $file['tmp_name'], $file['name']) : array('ext' => pathinfo($file['name'], PATHINFO_EXTENSION));
+        $ext = isset($checked['ext']) ? $checked['ext'] : pathinfo($file['name'], PATHINFO_EXTENSION);
+        $ext = strtolower((string) $ext);
         $random_name = 'slip_' . (is_callable('wp_generate_password') ? call_user_func('wp_generate_password', 16, false) : substr(hash('sha256', uniqid('', true)), 0, 16)) . '.' . $ext;
         $_FILES['slip_image']['name'] = $random_name;
 
@@ -684,6 +714,7 @@ class SAN8N_REST_API {
             'old_timestamp' => 401,
             'rate_limited' => 429,
             'upload_type' => 400,
+            'upload_missing' => 400,
             'upload_size' => 400,
             'verifier_unreachable' => 502,
             'bad_request' => 400
@@ -698,6 +729,7 @@ class SAN8N_REST_API {
             'old_timestamp' => (is_callable('__') ? call_user_func('__', 'Request timestamp too old.', 'scanandpay-n8n') : 'Request timestamp too old.'),
             'rate_limited' => (is_callable('__') ? call_user_func('__', 'Too many requests. Please try again later.', 'scanandpay-n8n') : 'Too many requests. Please try again later.'),
             'upload_type' => (is_callable('__') ? call_user_func('__', 'Invalid file type.', 'scanandpay-n8n') : 'Invalid file type.'),
+            'upload_missing' => (is_callable('__') ? call_user_func('__', 'No file uploaded.', 'scanandpay-n8n') : 'No file uploaded.'),
             'upload_size' => (is_callable('__') ? call_user_func('__', 'File size exceeds limit.', 'scanandpay-n8n') : 'File size exceeds limit.'),
             'verifier_unreachable' => (is_callable('__') ? call_user_func('__', 'Verification service unavailable. Please try again.', 'scanandpay-n8n') : 'Verification service unavailable. Please try again.'),
             'bad_request' => (is_callable('__') ? call_user_func('__', 'Invalid request.', 'scanandpay-n8n') : 'Invalid request.')

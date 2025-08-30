@@ -496,7 +496,8 @@ class SAN8N_Admin {
                     'X-PromptPay-Version' => '1.0',
                     'X-Test-Ping' => 'true'
                 ),
-                'body' => $test_payload
+                'body' => $test_payload,
+                'sslverify' => true,
             ));
         }
 
