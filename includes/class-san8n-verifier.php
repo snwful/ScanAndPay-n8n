@@ -55,7 +55,11 @@ abstract class SAN8N_Verifier_Abstract implements SAN8N_Verifier_Interface {
 
     protected function do_request($headers, $body, $logger = null, $session_token = '') {
         $timeout = function_exists('apply_filters') ? apply_filters('san8n_verifier_timeout', 8, $this->backend) : 8;
-        $retries = function_exists('apply_filters') ? (int) apply_filters('san8n_verifier_retries', 0, $this->backend) : 0;
+        $default_retries = (defined('SAN8N_CALLBACK_ASYNC') && SAN8N_CALLBACK_ASYNC) ? 2 : 0;
+        $retries = function_exists('apply_filters') ? (int) apply_filters('san8n_verifier_retries', $default_retries, $this->backend) : $default_retries;
+        if (!(defined('SAN8N_CALLBACK_ASYNC') && SAN8N_CALLBACK_ASYNC)) {
+            $retries = 0;
+        }
         $attempt = 0;
         $last = null;
         $delay = 1;
