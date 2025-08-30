@@ -13,3 +13,4 @@ Entries reference session logs under `docs/sessions/`.
 - 2025-08-29 — Add structured logging and callback retry with exponential backoff in PHP.
 - 2025-08-30 — Enforce SAN8N_CALLBACK_ASYNC toggle for verifier retries and merge changelog entries.
 - 2025-08-30 — Retry/backoff tuned to 1s/2s/4s (default 4 attempts). Added `retry_backoff` structured log (delay, jitter). Idempotent headers propagated on retries. Version bumped to 1.1.4.
+- 2025-08-30 — Tasker ingest v5.4 updated to use approvals UPSERT with `(source,idempotency_key)` and `last_seen_at` refresh via CTE, preserving duplicate gating semantics. Docs UPSERT example corrected to include `last_seen_at` in INSERT.

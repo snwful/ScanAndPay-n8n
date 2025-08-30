@@ -388,7 +388,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{INSERT INTO approvals (session_token, approved_amount, matched_at, ref_code, message_id) VALUES ('{{$json.session_token}}', {{$json.amount}}::numeric, to_timestamp({{$json.posted_at}}), {{$json.ref_code || null}}, {{$json.message_id || null}}) ON CONFLICT (session_token) DO NOTHING RETURNING session_token;}}"
+        "query": "={{WITH ins AS ( INSERT INTO approvals (source, idempotency_key, session_token, approved_amount, matched_at, ref_code, message_id, last_seen_at) VALUES ('tasker', COALESCE({{$json.message_id || null}}, md5('{{$json.session_token}}' || '|' || {{$json.posted_at}}::text)), '{{$json.session_token}}', {{$json.amount}}::numeric, to_timestamp({{$json.posted_at}}), {{$json.ref_code || null}}, {{$json.message_id || null}}, now()) ON CONFLICT (source, idempotency_key) DO NOTHING RETURNING session_token ), upd AS ( UPDATE approvals SET last_seen_at = now() WHERE source = 'tasker' AND idempotency_key = COALESCE({{$json.message_id || null}}, md5('{{$json.session_token}}' || '|' || {{$json.posted_at}}::text)) AND NOT EXISTS (SELECT 1 FROM ins) ) SELECT session_token FROM ins;}}"
       },
       "name": "PG UPSERT Approvals",
       "type": "n8n-nodes-base.postgres",

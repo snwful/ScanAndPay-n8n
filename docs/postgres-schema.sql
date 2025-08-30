@@ -105,8 +105,8 @@ CREATE INDEX IF NOT EXISTS approvals_created_at_idx
   ON approvals (created_at);
 
 -- UPSERT pattern:
--- INSERT INTO approvals (source, idempotency_key, session_token, approved_amount, matched_at)
--- VALUES ('src', 'idem123', 'sess', 0, now())
+-- INSERT INTO approvals (source, idempotency_key, session_token, approved_amount, matched_at, last_seen_at)
+-- VALUES ('src', 'idem123', 'sess', 0, now(), now())
 -- ON CONFLICT (source, idempotency_key) DO UPDATE
 --   SET last_seen_at = EXCLUDED.last_seen_at;
 
